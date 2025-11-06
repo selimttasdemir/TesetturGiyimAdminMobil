@@ -25,11 +25,27 @@ interface SaleFilters {
 
 class SaleService {
   async getSales(filters?: SaleFilters): Promise<PaginatedResponse<Sale>> {
-    return await apiService.get<PaginatedResponse<Sale>>('/sales', filters);
+    try {
+      return await apiService.get<PaginatedResponse<Sale>>('/sales', filters);
+    } catch (error) {
+      // Mock data for development - Backend not ready yet
+      console.log('Backend not available, returning mock data');
+      return {
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: filters?.pageSize || 10,
+        totalPages: 0,
+      };
+    }
   }
 
   async getSale(id: string): Promise<Sale> {
-    return await apiService.get<Sale>(`/sales/${id}`);
+    try {
+      return await apiService.get<Sale>(`/sales/${id}`);
+    } catch (error) {
+      throw new Error('Sale not found');
+    }
   }
 
   async createSale(data: CreateSaleRequest): Promise<ApiResponse<Sale>> {

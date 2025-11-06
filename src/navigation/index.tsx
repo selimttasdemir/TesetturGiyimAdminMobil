@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { View, StyleSheet } from 'react-native';
 import { useAuthStore } from '../store/authStore';
 import { AuthNavigator } from './AuthNavigator';
 import { MainNavigator } from './MainNavigator';
+import { isWeb } from '../utils/platform';
+import { COLORS } from '../constants';
 
-const Stack = createStackNavigator();
+const Stack = () => null;
 
 export const RootNavigator = () => {
   const { isAuthenticated, isLoading, loadUser } = useAuthStore();
@@ -20,7 +22,16 @@ export const RootNavigator = () => {
 
   return (
     <NavigationContainer>
-      {isAuthenticated ? <MainNavigator /> : <AuthNavigator />}
+      <View style={styles.container}>
+        {isAuthenticated ? <MainNavigator /> : <AuthNavigator />}
+      </View>
     </NavigationContainer>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+});

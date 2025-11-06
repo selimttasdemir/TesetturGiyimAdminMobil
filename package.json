@@ -1,12 +1,16 @@
 {
-  "name": "mobil-market-app",
+  "name": "tesettur-giyim-admin-panel",
   "version": "1.0.0",
+  "description": "Tesettür Giyim Mağazası Admin Paneli - Web ve Mobil Uygulaması",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:web": "expo export:web",
+    "build:android": "eas build --platform android",
+    "build:ios": "eas build --platform ios"
   },
   "dependencies": {
     "@expo/metro-runtime": "~3.2.3",

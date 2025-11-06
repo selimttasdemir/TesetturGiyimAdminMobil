@@ -12,7 +12,19 @@ interface ProductFilters {
 
 class ProductService {
   async getProducts(filters?: ProductFilters): Promise<PaginatedResponse<Product>> {
-    return await apiService.get<PaginatedResponse<Product>>('/products', filters);
+    try {
+      return await apiService.get<PaginatedResponse<Product>>('/products', filters);
+    } catch (error) {
+      // Mock data for development - Backend not ready yet
+      console.log('Backend not available, returning mock data');
+      return {
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: filters?.pageSize || 20,
+        totalPages: 0,
+      };
+    }
   }
 
   async getProduct(id: string): Promise<Product> {

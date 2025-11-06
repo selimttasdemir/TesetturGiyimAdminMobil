@@ -57,10 +57,38 @@ export const DashboardScreen = ({ navigation }: any) => {
   };
 
   const quickActions = [
-    { id: 1, title: 'Hızlı Satış', icon: 'cart-plus', color: COLORS.primary, screen: 'NewSale' },
-    { id: 2, title: 'Ürün Ekle', icon: 'hanger', color: COLORS.secondary, screen: 'AddProduct' },
-    { id: 3, title: 'Barkod Tara', icon: 'barcode-scan', color: COLORS.accent, screen: 'ScanBarcode' },
-    { id: 4, title: 'Raporlar', icon: 'chart-line', color: COLORS.info, screen: 'Reports' },
+    { 
+      id: 1, 
+      title: 'Hızlı Satış', 
+      icon: 'cart-plus', 
+      color: COLORS.primary, 
+      screen: 'Sales',
+      description: 'Yeni satış oluştur'
+    },
+    { 
+      id: 2, 
+      title: 'Ürün Ekle', 
+      icon: 'hanger', 
+      color: COLORS.success, 
+      screen: 'Products',
+      description: 'Yeni ürün ekle'
+    },
+    { 
+      id: 3, 
+      title: 'Barkod Tara', 
+      icon: 'barcode-scan', 
+      color: COLORS.secondary, 
+      screen: 'Products',
+      description: 'Barkod ile ara'
+    },
+    { 
+      id: 4, 
+      title: 'Raporlar', 
+      icon: 'chart-line', 
+      color: COLORS.info, 
+      screen: 'Reports',
+      description: 'Detaylı raporlar'
+    },
   ];
 
   // Responsive card width
@@ -151,24 +179,30 @@ export const DashboardScreen = ({ navigation }: any) => {
 
       {/* Quick Actions */}
       <Card title="Hızlı İşlemler" icon="lightning-bolt" iconColor={COLORS.primary}>
-        <View style={styles.quickActions}>
+        <View style={styles.quickActionsGrid}>
           {quickActions.map((action) => (
             <TouchableOpacity
               key={action.id}
-              style={[styles.actionButton, { width: cardWidth }]}
+              style={styles.actionCard}
               onPress={() => navigation.navigate(action.screen)}
               activeOpacity={0.7}
             >
-              <View style={[styles.actionIcon, { backgroundColor: `${action.color}15` }]}>
+              <View style={[styles.actionIconContainer, { backgroundColor: `${action.color}15` }]}>
                 <MaterialCommunityIcons 
                   name={action.icon as any} 
-                  size={isSmallDevice ? 24 : 28} 
+                  size={32} 
                   color={action.color} 
                 />
               </View>
-              <Text style={[styles.actionTitle, isSmallDevice && styles.actionTitleSmall]}>
-                {action.title}
-              </Text>
+              <View style={styles.actionContent}>
+                <Text style={styles.actionCardTitle}>{action.title}</Text>
+                <Text style={styles.actionCardDescription}>{action.description}</Text>
+              </View>
+              <MaterialCommunityIcons 
+                name="chevron-right" 
+                size={20} 
+                color={COLORS.textSecondary} 
+              />
             </TouchableOpacity>
           ))}
         </View>
@@ -312,6 +346,46 @@ const styles = StyleSheet.create({
   },
   statLabelSmall: {
     fontSize: 10,
+  },
+  quickActionsGrid: {
+    gap: SPACING.md,
+  },
+  actionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    gap: SPACING.md,
+    ...(Platform.OS === 'web'
+      ? ({ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' } as any)
+      : {
+          elevation: 1,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 3,
+        }),
+  },
+  actionIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: BORDER_RADIUS.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionContent: {
+    flex: 1,
+  },
+  actionCardTitle: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  actionCardDescription: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
   },
   quickActions: {
     flexDirection: 'row',

@@ -6,7 +6,9 @@ import {
   ActivityIndicator,
   ViewStyle,
   TextStyle,
+  View,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
 
 interface ButtonProps {
@@ -17,7 +19,7 @@ interface ButtonProps {
   disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
-  icon?: React.ReactNode;
+  icon?: string | React.ReactNode;  // String icon name veya custom ReactNode
   style?: ViewStyle;
   textStyle?: TextStyle;
 }
@@ -50,6 +52,19 @@ export const Button: React.FC<ButtonProps> = ({
     textStyle,
   ];
 
+  // Icon rendering helper
+  const renderIcon = () => {
+    if (!icon) return null;
+    
+    if (typeof icon === 'string') {
+      const iconColor = variant === 'outline' ? COLORS.primary : COLORS.surface;
+      const iconSize = size === 'small' ? 16 : size === 'large' ? 24 : 20;
+      return <MaterialCommunityIcons name={icon as any} size={iconSize} color={iconColor} />;
+    }
+    
+    return icon;
+  };
+
   return (
     <TouchableOpacity
       style={buttonStyle}
@@ -63,7 +78,7 @@ export const Button: React.FC<ButtonProps> = ({
         />
       ) : (
         <>
-          {icon}
+          {renderIcon()}
           <Text style={textStyles}>{title}</Text>
         </>
       )}
