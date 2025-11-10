@@ -1,19 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { useSupplierStore } from '../../store/supplierStore';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 
-export const AddSupplierScreen = ({ navigation }: any) => {
-  const { createSupplier, fetchSuppliers, isLoading } = useSupplierStore();
+type SupplierStackParamList = {
+  EditSupplier: { supplierId: string };
+};
+
+type EditSupplierScreenRouteProp = RouteProp<SupplierStackParamList, 'EditSupplier'>;
+
+export const EditSupplierScreen = ({ navigation }: any) => {
+  const route = useRoute<EditSupplierScreenRouteProp>();
+  const { supplierId } = route.params;
+  const { suppliers, updateSupplier, fetchSuppliers, isLoading } = useSupplierStore();
 
   const [name, setName] = useState('');
   const [contactPerson, setContactPerson] = useState('');
@@ -21,14 +31,30 @@ export const AddSupplierScreen = ({ navigation }: any) => {
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [taxNumber, setTaxNumber] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadSupplier();
+  }, [supplierId]);
+
+  const loadSupplier = async () => {
+    const supplier = suppliers.find(s => s.id === supplierId);
+    if (supplier) {
+      setName(supplier.name);
+      setContactPerson(supplier.contactPerson || '');
+      setPhone(supplier.phone);
+      setEmail(supplier.email || '');
+      setAddress(supplier.address || '');
+      setTaxNumber(supplier.taxNumber || '');
+    }
+    setLoading(false);
+  };
 
   const handleSubmit = async () => {
     if (!name || !phone) {
       Alert.alert('Hata', 'Lütfen firma adı ve telefon numarası girin');
       return;
     }
-
-    console.log('Submitting supplier data...');
 
     const supplierData = {
       name,
@@ -39,28 +65,25 @@ export const AddSupplierScreen = ({ navigation }: any) => {
       tax_number: taxNumber || undefined,
     };
 
-    console.log('Supplier data to send:', supplierData);
-
-    const success = await createSupplier(supplierData);
-    console.log('Create supplier result:', success);
+    const success = await updateSupplier(supplierId, supplierData);
     
     if (success) {
-      // Listeyi yenile
       await fetchSuppliers();
-      
-      // Formu temizle
-      setName('');
-      setContactPerson('');
-      setPhone('');
-      setEmail('');
-      setAddress('');
-      setTaxNumber('');
-      
-      Alert.alert('Başarılı', 'Tedarikçi başarıyla eklendi. Yeni tedarikçi ekleyebilirsiniz.');
+      Alert.alert('Başarılı', 'Tedarikçi güncellendi', [
+        { text: 'Tamam', onPress: () => navigation.goBack() }
+      ]);
     } else {
-      Alert.alert('Hata', 'Tedarikçi eklenirken bir hata oluştu');
+      Alert.alert('Hata', 'Tedarikçi güncellenirken bir hata oluştu');
     }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -124,7 +147,7 @@ export const AddSupplierScreen = ({ navigation }: any) => {
 
       <View style={styles.footer}>
         <Button
-          title="Tedarikçi Kaydet"
+          title="Değişiklikleri Kaydet"
           onPress={handleSubmit}
           loading={isLoading}
           icon="check"
@@ -137,6 +160,12 @@ export const AddSupplierScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: COLORS.background,
   },
   scrollView: {

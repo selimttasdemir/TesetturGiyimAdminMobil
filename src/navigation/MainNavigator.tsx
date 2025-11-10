@@ -4,9 +4,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { DashboardScreen } from '../screens/dashboard/DashboardScreen';
 import { ReportsScreen } from '../screens/reports/ReportsScreen';
+import { CustomersScreen } from '../screens/customers/CustomersScreen';
+import { InventoryScreen } from '../screens/inventory/InventoryScreen';
+import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { ProductNavigator } from './ProductNavigator';
 import { SalesNavigator } from './SalesNavigator';
 import { SupplierNavigator } from './SupplierNavigator';
+import { PurchaseNavigator } from './PurchaseNavigator';
 import { Sidebar } from '../components/layout';
 import { COLORS, FONT_SIZES } from '../constants';
 import { isWeb, isMobileSize, getSidebarWidth } from '../utils/platform';
@@ -108,6 +112,55 @@ export const MainNavigator = () => {
             tabBarLabel: 'Raporlar',
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="chart-line" size={size} color={color} />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name="Purchases"
+          component={PurchaseNavigator}
+          options={{
+            headerShown: false,
+            title: 'Satın Almalar',
+            tabBarLabel: 'Satın Alma',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="package-variant" size={size} color={color} />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name="Customers"
+          component={CustomersScreen}
+          options={{
+            title: 'Müşteriler',
+            tabBarLabel: 'Müşteriler',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="account-group" size={size} color={color} />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name="Inventory"
+          component={InventoryScreen}
+          options={{
+            title: 'Stok Yönetimi',
+            tabBarLabel: 'Stok',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="warehouse" size={size} color={color} />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{
+            title: 'Ayarlar',
+            tabBarLabel: 'Ayarlar',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="cog" size={size} color={color} />
             ),
           }}
         />
@@ -231,6 +284,55 @@ const WebNavigatorWithSidebar = ({ sidebarWidth }: { sidebarWidth: number }) => 
               tabBarLabel: 'Raporlar',
               tabBarIcon: ({ color, size }) => (
                 <MaterialCommunityIcons name="chart-line" size={size} color={color} />
+              ),
+            }}
+          />
+
+          <Tab.Screen
+            name="Purchases"
+            component={PurchaseNavigator}
+            options={{
+              headerShown: false,
+              title: 'Satın Almalar',
+              tabBarLabel: 'Satın Alma',
+              tabBarIcon: ({ color, size }) => (
+                <MaterialCommunityIcons name="package-variant" size={size} color={color} />
+              ),
+            }}
+          />
+
+          <Tab.Screen
+            name="Customers"
+            component={CustomersScreen}
+            options={{
+              title: 'Müşteriler',
+              tabBarLabel: 'Müşteriler',
+              tabBarIcon: ({ color, size }) => (
+                <MaterialCommunityIcons name="account-group" size={size} color={color} />
+              ),
+            }}
+          />
+
+          <Tab.Screen
+            name="Inventory"
+            component={InventoryScreen}
+            options={{
+              title: 'Stok Yönetimi',
+              tabBarLabel: 'Stok',
+              tabBarIcon: ({ color, size }) => (
+                <MaterialCommunityIcons name="warehouse" size={size} color={color} />
+              ),
+            }}
+          />
+
+          <Tab.Screen
+            name="Settings"
+            component={SettingsScreen}
+            options={{
+              title: 'Ayarlar',
+              tabBarLabel: 'Ayarlar',
+              tabBarIcon: ({ color, size }) => (
+                <MaterialCommunityIcons name="cog" size={size} color={color} />
               ),
             }}
           />

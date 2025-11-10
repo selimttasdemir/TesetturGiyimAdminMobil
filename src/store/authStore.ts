@@ -29,51 +29,48 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
     
-    // DEMO MODE: Backend olmadığı için mock data kullanıyoruz
-    // Backend hazır olduğunda aşağıdaki kodu aktif edin
-    
     try {
-      // Simüle edilmiş gecikme
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Backend ile login - sadece token döner
+      const loginResponse = await authService.login({ email, password });
       
-      // Mock kullanıcı verisi
-      const mockUser = {
-        id: '1',
-        email: email,
-        name: email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1),
-        role: 'admin' as any,
-        phone: '+90 555 123 4567',
-        createdAt: new Date().toISOString(),
-      };
+      // Token'ı sakla
+      await AsyncStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, loginResponse.access_token);
       
-      const mockToken = 'mock-jwt-token-' + Date.now();
+      // Token ile user bilgisini çek
+      const user = await authService.getCurrentUser();
       
-      await AsyncStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, mockToken);
-      await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(mockUser));
+      await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(user));
 
       set({
-        user: mockUser,
-        token: mockToken,
+        user: user,
+        token: loginResponse.access_token,
         isAuthenticated: true,
         isLoading: false,
       });
-      
-      /* BACKEND HAZIR OLDUĞUNDA BU KODU AKTİF EDİN:
-      const response = await authService.login({ email, password });
-      
-      await AsyncStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, response.access_token);
-      await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(response.user));
-
-      set({
-        user: response.user,
-        token: response.access_token,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-      */
     } catch (error: any) {
+      console.log('Login error:', error.response?.data);
+      
+      let errorMessage = 'Giriş başarısız. Email veya şifre hatalı.';
+      
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        
+        // FastAPI validation errors (array format)
+        if (Array.isArray(errorData.detail)) {
+          errorMessage = errorData.detail.map((err: any) => err.msg).join(', ');
+        } 
+        // String format
+        else if (typeof errorData.detail === 'string') {
+          errorMessage = errorData.detail;
+        }
+        // Message format
+        else if (errorData.message) {
+          errorMessage = errorData.message;
+        }
+      }
+      
       set({
-        error: error.response?.data?.message || 'Giriş başarısız',
+        error: errorMessage,
         isLoading: false,
       });
       throw error;

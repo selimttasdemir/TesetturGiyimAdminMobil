@@ -26,6 +26,12 @@ export const DashboardScreen = ({ navigation }: any) => {
   const { fetchSales } = useSaleStore();
   
   const [refreshing, setRefreshing] = React.useState(false);
+  const [stats, setStats] = React.useState({
+    todaySales: 0,
+    todayTransactions: 0,
+    lowStockItems: 0,
+    totalProducts: 0,
+  });
 
   useEffect(() => {
     loadData();
@@ -36,9 +42,33 @@ export const DashboardScreen = ({ navigation }: any) => {
       await Promise.all([
         fetchProducts({ pageSize: 5 }),
         fetchSales({ pageSize: 10 }),
+        fetchDashboardStats(),
       ]);
     } catch (error) {
-      // Error handling
+      console.error('Dashboard data load error:', error);
+    }
+  };
+
+  const fetchDashboardStats = async () => {
+    try {
+      const token = await useAuthStore.getState().token;
+      const response = await fetch('http://localhost:8000/api/reports/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setStats({
+          todaySales: data.today_sales || 0,
+          todayTransactions: data.today_transactions || 0,
+          lowStockItems: data.low_stock_items || 0,
+          totalProducts: data.total_products || 0,
+        });
+      }
+    } catch (error) {
+      console.error('Dashboard stats error:', error);
     }
   };
 
@@ -46,14 +76,6 @@ export const DashboardScreen = ({ navigation }: any) => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
-  };
-
-  // Mock data - Giyim mağazası için
-  const stats = {
-    todaySales: 8420,
-    todayTransactions: 23,
-    lowStockItems: 3,
-    totalProducts: products.length || 6,
   };
 
   const quickActions = [

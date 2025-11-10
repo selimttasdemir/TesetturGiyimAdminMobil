@@ -6,10 +6,14 @@ interface LoginCredentials {
   password: string;
 }
 
+interface LoginRequest {
+  email: string;
+  password: string;
+}
+
 interface LoginResponse {
   access_token: string;
   token_type: string;
-  user: User;
 }
 
 interface RegisterRequest {
@@ -21,11 +25,16 @@ interface RegisterRequest {
 
 class AuthService {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const formData = new FormData();
-    formData.append('username', credentials.email);
-    formData.append('password', credentials.password);
+    // OAuth2PasswordRequestForm için URL-encoded format kullan
+    const params = new URLSearchParams();
+    params.append('username', credentials.email);
+    params.append('password', credentials.password);
 
-    return await apiService.post<LoginResponse>('/auth/login', formData);
+    return await apiService.post<LoginResponse>('/auth/login', params, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    });
   }
 
   async register(data: RegisterRequest): Promise<ApiResponse<User>> {

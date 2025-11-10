@@ -97,10 +97,10 @@ export const NewSaleScreen = ({ navigation }: any) => {
     }
   };
 
-  const filteredProducts = products.filter((p) =>
+  const filteredProducts = products?.filter((p) =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.barcode.includes(searchQuery)
-  );
+  ) || [];
 
   // Mobil görünüm: Ürün kartları
   const renderProductCard = ({ item }: { item: Product }) => (

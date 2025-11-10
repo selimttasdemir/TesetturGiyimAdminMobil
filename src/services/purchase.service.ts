@@ -14,27 +14,27 @@ interface PurchaseFilters {
 
 class PurchaseService {
   async getPurchaseOrders(filters?: PurchaseFilters): Promise<PaginatedResponse<PurchaseOrder>> {
-    return await apiService.get<PaginatedResponse<PurchaseOrder>>('/purchases', filters);
+    return await apiService.get<PaginatedResponse<PurchaseOrder>>('/purchases/', filters);
   }
 
   async getPurchaseOrder(id: string): Promise<PurchaseOrder> {
-    return await apiService.get<PurchaseOrder>(`/purchases/${id}`);
+    return await apiService.get<PurchaseOrder>(`/purchases/${id}/`);
   }
 
   async createPurchaseOrder(data: Partial<PurchaseOrder>): Promise<ApiResponse<PurchaseOrder>> {
-    return await apiService.post<ApiResponse<PurchaseOrder>>('/purchases', data);
+    return await apiService.post<ApiResponse<PurchaseOrder>>('/purchases/', data);
   }
 
   async updatePurchaseOrder(id: string, data: Partial<PurchaseOrder>): Promise<ApiResponse<PurchaseOrder>> {
-    return await apiService.put<ApiResponse<PurchaseOrder>>(`/purchases/${id}`, data);
+    return await apiService.put<ApiResponse<PurchaseOrder>>(`/purchases/${id}/`, data);
   }
 
   async deletePurchaseOrder(id: string): Promise<ApiResponse<void>> {
-    return await apiService.delete<ApiResponse<void>>(`/purchases/${id}`);
+    return await apiService.delete<ApiResponse<void>>(`/purchases/${id}/`);
   }
 
   async updatePurchaseStatus(id: string, status: string): Promise<ApiResponse<PurchaseOrder>> {
-    return await apiService.put<ApiResponse<PurchaseOrder>>(`/purchases/${id}/status`, { status });
+    return await apiService.put<ApiResponse<PurchaseOrder>>(`/purchases/${id}/status/`, { status });
   }
 }
 

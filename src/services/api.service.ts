@@ -2,8 +2,8 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants';
 
-// API Base URL - development için localhost kullan
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+// API Base URL - development için localhost kullan (v1 kaldırıldı - backend /api kullanıyor)
+const API_BASE_URL = 'http://localhost:8000/api';
 
 class ApiService {
   private api: AxiosInstance;
@@ -51,8 +51,8 @@ class ApiService {
     return response.data;
   }
 
-  async post<T>(url: string, data?: any): Promise<T> {
-    const response = await this.api.post<T>(url, data);
+  async post<T>(url: string, data?: any, config?: any): Promise<T> {
+    const response = await this.api.post<T>(url, data, config);
     return response.data;
   }
 

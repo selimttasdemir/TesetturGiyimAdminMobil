@@ -134,22 +134,17 @@ export const AddProductScreen = ({ navigation, route }: any) => {
   const handleSubmit = async () => {
     // Validasyon
     if (!barcode || !name || !category) {
-      Alert.alert('Hata', 'Lütfen zorunlu alanları doldurun');
+      Alert.alert('Hata', 'Lütfen zorunlu alanları doldurun (Barkod, Ürün Adı, Kategori)');
       return;
     }
 
-    const purchasePriceNum = parseFloat(purchasePrice);
-    const salePriceNum = parseFloat(salePrice);
-    const stockNum = parseInt(stock, 10);
-    const minStockNum = parseInt(minStock, 10);
+    const purchasePriceNum = parseFloat(purchasePrice) || 0;
+    const salePriceNum = parseFloat(salePrice) || 0;
+    const stockNum = parseInt(stock, 10) || 0;
+    const minStockNum = parseInt(minStock, 10) || 5;
 
-    if (isNaN(purchasePriceNum) || isNaN(salePriceNum) || purchasePriceNum < 0 || salePriceNum < 0) {
-      Alert.alert('Hata', 'Geçerli fiyat değerleri girin');
-      return;
-    }
-
-    if (isNaN(stockNum) || isNaN(minStockNum) || stockNum < 0 || minStockNum < 0) {
-      Alert.alert('Hata', 'Geçerli stok değerleri girin');
+    if (purchasePriceNum <= 0 || salePriceNum <= 0) {
+      Alert.alert('Hata', 'Fiyatlar 0\'dan büyük olmalıdır');
       return;
     }
 
@@ -162,36 +157,45 @@ export const AddProductScreen = ({ navigation, route }: any) => {
     const productData: any = {
       barcode,
       name,
-      category: { id: category, name: category },
-      description,
+      category,
+      description: description || undefined,
       purchasePrice: purchasePriceNum,
       salePrice: salePriceNum,
       stock: sizes.length > 0 ? totalSizeStock : stockNum,
       minStock: minStockNum,
-      unit,
-      shelfLocation,
-      supplierId: supplierId || undefined,
-      brand,
-      material,
-      season: season || undefined,
-      pattern,
-      careInstructions,
-      sizes: sizes.length > 0 ? sizes : undefined,
-      colors: colors.length > 0 ? colors : undefined,
-      isActive: true,
     };
 
-    try {
-      await createProduct(productData);
-      Alert.alert('Başarılı', 'Ürün başarıyla eklendi', [
-        { text: 'Tamam', onPress: () => navigation.goBack() }
-      ]);
-    } catch (error) {
+    console.log('Submitting product:', productData);
+
+    const success = await createProduct(productData);
+    
+    if (success) {
+      // Formu temizle
+      setBarcode('');
+      setName('');
+      setCategory('');
+      setDescription('');
+      setPurchasePrice('');
+      setSalePrice('');
+      setStock('');
+      setMinStock('');
+      setSizes([]);
+      setColors([]);
+      setSupplierId('');
+      setBrand('');
+      setMaterial('');
+      setSeason('');
+      setPattern('');
+      setCareInstructions('');
+      setShelfLocation('');
+      
+      Alert.alert('Başarılı', 'Ürün başarıyla eklendi. Yeni ürün ekleyebilirsiniz.');
+    } else {
       Alert.alert('Hata', 'Ürün eklenirken bir hata oluştu');
     }
   };
 
-  const selectedSupplier = suppliers.find(s => s.id === supplierId);
+  const selectedSupplier = suppliers?.find(s => s.id === supplierId);
 
   return (
     <View style={styles.container}>
@@ -586,7 +590,7 @@ export const AddProductScreen = ({ navigation, route }: any) => {
         title="Tedarikçi Seç"
       >
         <ScrollView style={styles.supplierList}>
-          {suppliers.map((supplier) => (
+          {suppliers?.map((supplier) => (
             <TouchableOpacity
               key={supplier.id}
               style={styles.supplierItem}
@@ -604,7 +608,7 @@ export const AddProductScreen = ({ navigation, route }: any) => {
               )}
             </TouchableOpacity>
           ))}
-          {suppliers.length === 0 && (
+          {(!suppliers || suppliers.length === 0) && (
             <Text style={styles.emptyText}>Henüz tedarikçi eklenmemiş</Text>
           )}
         </ScrollView>

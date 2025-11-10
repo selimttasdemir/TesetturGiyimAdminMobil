@@ -26,7 +26,7 @@ interface SaleFilters {
 class SaleService {
   async getSales(filters?: SaleFilters): Promise<PaginatedResponse<Sale>> {
     try {
-      return await apiService.get<PaginatedResponse<Sale>>('/sales', filters);
+      return await apiService.get<PaginatedResponse<Sale>>('/sales/', filters);
     } catch (error) {
       // Mock data for development - Backend not ready yet
       console.log('Backend not available, returning mock data');
@@ -42,30 +42,30 @@ class SaleService {
 
   async getSale(id: string): Promise<Sale> {
     try {
-      return await apiService.get<Sale>(`/sales/${id}`);
+      return await apiService.get<Sale>(`/sales/${id}/`);
     } catch (error) {
       throw new Error('Sale not found');
     }
   }
 
   async createSale(data: CreateSaleRequest): Promise<ApiResponse<Sale>> {
-    return await apiService.post<ApiResponse<Sale>>('/sales', data);
+    return await apiService.post<ApiResponse<Sale>>('/sales/', data);
   }
 
   async cancelSale(id: string, reason?: string): Promise<ApiResponse<void>> {
-    return await apiService.post<ApiResponse<void>>(`/sales/${id}/cancel`, { reason });
+    return await apiService.post<ApiResponse<void>>(`/sales/${id}/cancel/`, { reason });
   }
 
   async getDailySales(date?: string): Promise<Sale[]> {
-    return await apiService.get<Sale[]>('/sales/daily', { date });
+    return await apiService.get<Sale[]>('/sales/daily/', { date });
   }
 
   async getDailyReport(date?: string): Promise<any> {
-    return await apiService.get('/sales/daily-report', { date });
+    return await apiService.get('/sales/daily-report/', { date });
   }
 
   async generateReceipt(saleId: string): Promise<Blob> {
-    return await apiService.get<Blob>(`/sales/${saleId}/receipt`);
+    return await apiService.get<Blob>(`/sales/${saleId}/receipt/`);
   }
 }
 
