@@ -13,12 +13,17 @@ import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
 import { Product } from '../../types';
+import { useResponsiveGrid } from '../../hooks/useResponsiveGrid';
 
 export const InventoryScreen = () => {
   const { products, fetchProducts, isLoading } = useProductStore();
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'low' | 'out'>('all');
+  
+  // Responsive grid - 2 sütun maksimum (min 400px kart genişliği, 200px yükseklik)
+  // Büyük min width sayesinde max 2 sütun olacak
+  const gridConfig = useResponsiveGrid(400, 200);
 
   useEffect(() => {
     loadProducts();
@@ -73,46 +78,48 @@ export const InventoryScreen = () => {
     const stockStatus = getStockStatus(item);
 
     return (
-      <View style={styles.productCard}>
-        <View style={styles.productHeader}>
-          <View style={styles.productInfo}>
-            <Text style={styles.productName}>{item.name}</Text>
-            <Text style={styles.productBarcode}>{item.barcode}</Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: `${stockStatus.color}20` }]}>
-            <MaterialCommunityIcons 
-              name={stockStatus.icon as any} 
-              size={16} 
-              color={stockStatus.color} 
-            />
-            <Text style={[styles.statusText, { color: stockStatus.color }]}>
-              {stockStatus.text}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.stockInfo}>
-          <View style={styles.stockItem}>
-            <Text style={styles.stockLabel}>Mevcut Stok</Text>
-            <Text style={[styles.stockValue, { color: stockStatus.color }]}>
-              {item.stock} {item.unit || 'adet'}
-            </Text>
-          </View>
-          
-          {item.minStock && (
-            <View style={styles.stockItem}>
-              <Text style={styles.stockLabel}>Min. Stok</Text>
-              <Text style={styles.stockValue}>
-                {item.minStock} {item.unit || 'adet'}
+      <View style={[styles.gridItem, { width: gridConfig.itemWidth }]}>
+        <View style={[styles.productCard, { minHeight: gridConfig.cardHeight }]}>
+          <View style={styles.productHeader}>
+            <View style={styles.productInfo}>
+              <Text style={styles.productName}>{item.name}</Text>
+              <Text style={styles.productBarcode}>{item.barcode}</Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: `${stockStatus.color}20` }]}>
+              <MaterialCommunityIcons 
+                name={stockStatus.icon as any} 
+                size={16} 
+                color={stockStatus.color} 
+              />
+              <Text style={[styles.statusText, { color: stockStatus.color }]}>
+                {stockStatus.text}
               </Text>
             </View>
-          )}
+          </View>
 
-          <View style={styles.stockItem}>
-            <Text style={styles.stockLabel}>Fiyat</Text>
-            <Text style={styles.stockValue}>
-              ₺{item.salePrice.toLocaleString('tr-TR')}
-            </Text>
+          <View style={styles.stockInfo}>
+            <View style={styles.stockItem}>
+              <Text style={styles.stockLabel}>Mevcut Stok</Text>
+              <Text style={[styles.stockValue, { color: stockStatus.color }]}>
+                {item.stock} {item.unit || 'adet'}
+              </Text>
+            </View>
+            
+            {item.minStock && (
+              <View style={styles.stockItem}>
+                <Text style={styles.stockLabel}>Min. Stok</Text>
+                <Text style={styles.stockValue}>
+                  {item.minStock} {item.unit || 'adet'}
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.stockItem}>
+              <Text style={styles.stockLabel}>Fiyat</Text>
+              <Text style={styles.stockValue}>
+                ₺{item.salePrice.toLocaleString('tr-TR')}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -163,6 +170,9 @@ export const InventoryScreen = () => {
         data={filteredProducts}
         renderItem={renderProductItem}
         keyExtractor={(item) => item.id}
+        key={`grid-${gridConfig.numColumns}`}
+        numColumns={gridConfig.numColumns}
+        columnWrapperStyle={gridConfig.numColumns > 1 ? [styles.gridRow, { gap: gridConfig.itemSpacing }] : undefined}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
@@ -190,13 +200,13 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: 'row',
     padding: SPACING.md,
-    gap: SPACING.md,
   },
   statCard: {
     flex: 1,
     padding: SPACING.md,
     borderRadius: BORDER_RADIUS.md,
     alignItems: 'center',
+    marginRight: SPACING.md,
   },
   statValue: {
     fontSize: FONT_SIZES.xxl,
@@ -216,11 +226,18 @@ const styles = StyleSheet.create({
   list: {
     padding: SPACING.md,
   },
+  gridRow: {
+    justifyContent: 'flex-start',
+    marginBottom: 0,
+  },
+  gridItem: {
+    marginBottom: 16,
+  },
   productCard: {
     backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
-    marginBottom: SPACING.md,
+    marginBottom: 0,
     borderWidth: 1,
     borderColor: COLORS.border,
   },

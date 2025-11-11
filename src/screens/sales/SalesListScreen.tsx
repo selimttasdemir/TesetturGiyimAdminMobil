@@ -15,6 +15,7 @@ import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
 import { Sale, PaymentMethod } from '../../types';
+import { useResponsiveGrid } from '../../hooks/useResponsiveGrid';
 
 const { width } = Dimensions.get('window');
 const isMobile = Platform.OS !== 'web' || width < 768;
@@ -24,6 +25,9 @@ export const SalesListScreen = ({ navigation }: any) => {
     const [refreshing, setRefreshing] = useState(false);
     const [filter, setFilter] = useState<string>('all');
     const [allSales, setAllSales] = useState<Sale[]>([]); // Tüm satışları sakla
+    
+    // Responsive grid - 2 sütun için optimize (min 350px kart genişliği, 280px yükseklik)
+    const gridConfig = useResponsiveGrid(350, 280);
 
     useEffect(() => {
         loadSales();
@@ -138,15 +142,17 @@ export const SalesListScreen = ({ navigation }: any) => {
     const renderSaleCard = ({ item }: { item: Sale }) => {
         const paymentMethod = item.paymentMethod || item.payment_method; // Snake_case desteği
         return (
-            <TouchableOpacity
-                onPress={() => navigation.navigate('SaleDetail', { saleId: item.id })}
-                activeOpacity={0.7}
-            >
-                <Card style={styles.saleCard}>
-                    <View style={styles.saleHeader}>
-                        <View style={styles.saleNumberContainer}>
-                            <MaterialCommunityIcons name="receipt" size={20} color={COLORS.primary} />
-                            <Text style={styles.saleNumber}>{item.saleNumber || `#${item.id}`}</Text>
+            <View style={[styles.gridItem, { width: gridConfig.itemWidth }]}>
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('SaleDetail', { saleId: item.id })}
+                    activeOpacity={0.7}
+                    style={{ flex: 1 }}
+                >
+                    <Card style={[styles.saleCard, { minHeight: gridConfig.cardHeight }] as any}>
+                        <View style={styles.saleHeader}>
+                            <View style={styles.saleNumberContainer}>
+                                <MaterialCommunityIcons name="receipt" size={20} color={COLORS.primary} />
+                                <Text style={styles.saleNumber}>{item.saleNumber || `#${item.id}`}</Text>
                         </View>
                         <View style={[styles.paymentBadge, { backgroundColor: `${getPaymentColor(paymentMethod)}20` }]}>
                             <MaterialCommunityIcons
@@ -206,6 +212,7 @@ export const SalesListScreen = ({ navigation }: any) => {
                     </View>
                 </Card>
             </TouchableOpacity>
+            </View>
         );
     };
 
@@ -353,6 +360,9 @@ export const SalesListScreen = ({ navigation }: any) => {
                     data={sales}
                     renderItem={renderSaleCard}
                     keyExtractor={(item) => item.id}
+                    key={`grid-${gridConfig.numColumns}`}
+                    numColumns={gridConfig.numColumns}
+                    columnWrapperStyle={gridConfig.numColumns > 1 ? [styles.gridRow, { gap: gridConfig.itemSpacing }] : undefined}
                     contentContainerStyle={styles.list}
                     refreshControl={
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -400,7 +410,6 @@ export const SalesListScreen = ({ navigation }: any) => {
             flexDirection: 'row',
             padding: SPACING.md,
             backgroundColor: COLORS.surface,
-            gap: SPACING.sm,
         },
         filterButton: {
             flex: 1,
@@ -408,6 +417,7 @@ export const SalesListScreen = ({ navigation }: any) => {
             paddingHorizontal: SPACING.md,
             borderRadius: BORDER_RADIUS.md,
             backgroundColor: COLORS.background,
+            marginRight: SPACING.sm,
             alignItems: 'center',
             borderWidth: 1,
             borderColor: COLORS.border,
@@ -551,8 +561,16 @@ export const SalesListScreen = ({ navigation }: any) => {
         list: {
             padding: SPACING.md,
         },
+        gridRow: {
+            justifyContent: 'flex-start',
+            marginBottom: 0,
+        },
+        gridItem: {
+            marginBottom: 16,
+        },
         saleCard: {
-            marginBottom: SPACING.md,
+            marginBottom: 0,
+            flex: 1,
         },
         saleHeader: {
             flexDirection: 'row',

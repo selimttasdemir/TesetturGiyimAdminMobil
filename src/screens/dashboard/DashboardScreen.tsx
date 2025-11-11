@@ -157,7 +157,7 @@ export const DashboardScreen = ({ navigation }: any) => {
             color={COLORS.surface} 
           />
           <Text style={[styles.statValue, isSmallDevice && styles.statValueSmall]}>
-            ₺{stats.todaySales.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}
+            {`₺${stats.todaySales.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`}
           </Text>
           <Text style={[styles.statLabel, isSmallDevice && styles.statLabelSmall]}>
             Bugünkü Satış
@@ -171,7 +171,7 @@ export const DashboardScreen = ({ navigation }: any) => {
             color={COLORS.surface} 
           />
           <Text style={[styles.statValue, isSmallDevice && styles.statValueSmall]}>
-            ₺{stats.monthlySales.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}
+            {`₺${stats.monthlySales.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`}
           </Text>
           <Text style={[styles.statLabel, isSmallDevice && styles.statLabelSmall]}>
             Aylık Satış
@@ -185,7 +185,7 @@ export const DashboardScreen = ({ navigation }: any) => {
             color={COLORS.surface} 
           />
           <Text style={[styles.statValue, isSmallDevice && styles.statValueSmall]}>
-            ₺{stats.totalSales.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}
+            {`₺${stats.totalSales.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`}
           </Text>
           <Text style={[styles.statLabel, isSmallDevice && styles.statLabelSmall]}>
             Toplam Satış
@@ -366,14 +366,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: isSmallDevice ? 110 : 130,
     ...(Platform.OS === 'web'
-      ? ({ boxShadow: '0 2px 4px rgba(0,0,0,0.08)' } as any)
-      : {
-          elevation: 2,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-        }),
+      ? { boxShadow: '0 2px 4px rgba(0,0,0,0.08)' }
+      : { elevation: 2 }) as any,
   },
   statPrimary: {
     backgroundColor: COLORS.primary,
@@ -422,14 +416,8 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.md,
     gap: SPACING.md,
     ...(Platform.OS === 'web'
-      ? ({ boxShadow: '0 1px 3px rgba(0,0,0,0.05)' } as any)
-      : {
-          elevation: 1,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.05,
-          shadowRadius: 3,
-        }),
+      ? { boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }
+      : { elevation: 1 }) as any,
   },
   actionIconContainer: {
     width: 56,

@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   Platform,
   Dimensions,
 } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useToastStore } from '../../store/toastStore';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
 
 interface BarcodeScannerScreenProps {
@@ -24,6 +24,7 @@ export const BarcodeScannerScreen: React.FC<BarcodeScannerScreenProps> = ({
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [flashEnabled, setFlashEnabled] = useState(false);
+  const { showToast } = useToastStore();
 
   const { onBarcodeScanned } = route.params || {};
 
@@ -42,26 +43,12 @@ export const BarcodeScannerScreen: React.FC<BarcodeScannerScreenProps> = ({
     setScanned(true);
 
     // Barkod başarıyla okundu
-    Alert.alert(
-      'Barkod Okundu',
-      `Tip: ${type}\nBarkod: ${data}`,
-      [
-        {
-          text: 'Tekrar Tara',
-          onPress: () => setScanned(false),
-          style: 'cancel',
-        },
-        {
-          text: 'Kullan',
-          onPress: () => {
-            if (onBarcodeScanned) {
-              onBarcodeScanned(data);
-            }
-            navigation.goBack();
-          },
-        },
-      ]
-    );
+    showToast('success', `Barkod: ${data}`);
+    
+    if (onBarcodeScanned) {
+      onBarcodeScanned(data);
+    }
+    navigation.goBack();
   };
 
   const toggleFlash = () => {

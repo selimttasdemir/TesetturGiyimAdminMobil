@@ -5,19 +5,22 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
   TouchableOpacity,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSaleStore } from '../../store/saleStore';
+import { useToastStore } from '../../store/toastStore';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
+import { Modal } from '../../components/common/Modal';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
 
 export const SaleDetailScreen = ({ route, navigation }: any) => {
   const { saleId } = route.params;
   const { selectedSale, fetchSale, isLoading } = useSaleStore();
+  const { showToast } = useToastStore();
   const [cancelling, setCancelling] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   useEffect(() => {
     loadSale();
@@ -27,35 +30,27 @@ export const SaleDetailScreen = ({ route, navigation }: any) => {
     try {
       await fetchSale(saleId.toString());
     } catch (error) {
-      Alert.alert('Hata', 'Satış detayları yüklenemedi');
+      showToast('error', 'Satış detayları yüklenemedi');
       navigation.goBack();
     }
   };
 
   const handleCancelSale = () => {
-    Alert.alert(
-      'Satışı İptal Et',
-      'Bu satışı iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        {
-          text: 'İptal Et',
-          style: 'destructive',
-          onPress: async () => {
-            setCancelling(true);
-            try {
-              // TODO: Cancel sale API call
-              Alert.alert('Başarılı', 'Satış iptal edildi');
-              navigation.goBack();
-            } catch (error) {
-              Alert.alert('Hata', 'Satış iptal edilemedi');
-            } finally {
-              setCancelling(false);
-            }
-          },
-        },
-      ]
-    );
+    setShowCancelModal(true);
+  };
+
+  const confirmCancelSale = async () => {
+    setCancelling(true);
+    try {
+      // TODO: Cancel sale API call
+      showToast('success', 'Satış iptal edildi');
+      setShowCancelModal(false);
+      navigation.goBack();
+    } catch (error) {
+      showToast('error', 'Satış iptal edilemedi');
+    } finally {
+      setCancelling(false);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -266,7 +261,7 @@ export const SaleDetailScreen = ({ route, navigation }: any) => {
         <View style={styles.actions}>
           <Button
             title="Yazdır"
-            onPress={() => Alert.alert('Bilgi', 'Yazdırma özelliği yakında eklenecek')}
+            onPress={() => showToast('info', 'Yazdırma özelliği yakında eklenecek')}
             icon="printer"
             variant="outline"
             style={styles.actionButton}
@@ -281,6 +276,42 @@ export const SaleDetailScreen = ({ route, navigation }: any) => {
           />
         </View>
       )}
+
+      {/* Cancel Confirmation Modal */}
+      <Modal
+        visible={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        title="Satışı İptal Et"
+      >
+        <View style={styles.confirmContent}>
+          <MaterialCommunityIcons 
+            name="alert-circle-outline" 
+            size={64} 
+            color={COLORS.error} 
+            style={{ alignSelf: 'center', marginBottom: SPACING.lg }}
+          />
+          <Text style={styles.confirmText}>
+            Bu satışı iptal etmek istediğinizden emin misiniz?
+          </Text>
+          <Text style={styles.confirmSubtext}>
+            Bu işlem geri alınamaz.
+          </Text>
+          
+          <View style={styles.modalActions}>
+            <Button
+              title="Vazgeç"
+              onPress={() => setShowCancelModal(false)}
+              variant="outline"
+            />
+            <Button
+              title="İptal Et"
+              onPress={confirmCancelSale}
+              style={{ backgroundColor: COLORS.error }}
+              loading={cancelling}
+            />
+          </View>
+        </View>
+      </Modal>
 
       <View style={{ height: SPACING.xl }} />
     </ScrollView>
@@ -448,5 +479,26 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+  },
+  confirmContent: {
+    padding: SPACING.md,
+  },
+  confirmText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+    fontWeight: '500',
+  },
+  confirmSubtext: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginTop: SPACING.lg,
   },
 });

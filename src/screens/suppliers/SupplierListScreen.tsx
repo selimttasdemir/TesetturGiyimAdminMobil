@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,11 +19,15 @@ import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
 import { Supplier } from '../../types';
+import { useResponsiveGrid } from '../../hooks/useResponsiveGrid';
 
 export const SupplierListScreen = ({ navigation }: any) => {
   const { suppliers, isLoading, fetchSuppliers, updateSupplier, deleteSupplier } = useSupplierStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Responsive grid - 2 sütun için (min 350px kart genişliği, 240px yükseklik)
+  const gridConfig = useResponsiveGrid(350, 240);
   
   // Modal states
   const [detailModalVisible, setDetailModalVisible] = useState(false);
@@ -127,43 +132,46 @@ export const SupplierListScreen = ({ navigation }: any) => {
   };
 
   const renderSupplier = ({ item }: { item: Supplier }) => (
-    <TouchableOpacity
-      onPress={() => openDetailModal(item)}
-      activeOpacity={0.7}
-    >
-      <Card>
-        <View style={styles.supplierCard}>
-          <View style={styles.iconContainer}>
-            <MaterialCommunityIcons name="truck" size={32} color={COLORS.primary} />
-          </View>
-          
-          <View style={styles.supplierInfo}>
-            <Text style={styles.supplierName}>{item.name}</Text>
+    <View style={[styles.gridItem, { width: gridConfig.itemWidth }]}>
+      <TouchableOpacity
+        onPress={() => openDetailModal(item)}
+        activeOpacity={0.7}
+        style={{ flex: 1 }}
+      >
+        <Card style={[styles.supplierCardContainer, { minHeight: gridConfig.cardHeight }] as any}>
+          <View style={styles.supplierCard}>
+            <View style={styles.iconContainer}>
+              <MaterialCommunityIcons name="truck" size={32} color={COLORS.primary} />
+            </View>
             
-            {item.contactPerson && (
+            <View style={styles.supplierInfo}>
+              <Text style={styles.supplierName}>{item.name}</Text>
+              
+              {item.contactPerson && (
+                <View style={styles.supplierInfoRow}>
+                  <MaterialCommunityIcons name="account" size={16} color={COLORS.textSecondary} />
+                  <Text style={styles.infoText}>{item.contactPerson}</Text>
+                </View>
+              )}
+              
               <View style={styles.supplierInfoRow}>
-                <MaterialCommunityIcons name="account" size={16} color={COLORS.textSecondary} />
-                <Text style={styles.infoText}>{item.contactPerson}</Text>
+                <MaterialCommunityIcons name="phone" size={16} color={COLORS.textSecondary} />
+                <Text style={styles.infoText}>{item.phone}</Text>
               </View>
-            )}
-            
-            <View style={styles.supplierInfoRow}>
-              <MaterialCommunityIcons name="phone" size={16} color={COLORS.textSecondary} />
-              <Text style={styles.infoText}>{item.phone}</Text>
+
+              {item.email && (
+                <View style={styles.supplierInfoRow}>
+                  <MaterialCommunityIcons name="email" size={16} color={COLORS.textSecondary} />
+                  <Text style={styles.infoText}>{item.email}</Text>
+                </View>
+              )}
             </View>
 
-            {item.email && (
-              <View style={styles.supplierInfoRow}>
-                <MaterialCommunityIcons name="email" size={16} color={COLORS.textSecondary} />
-                <Text style={styles.infoText}>{item.email}</Text>
-              </View>
-            )}
+            <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
           </View>
-
-          <MaterialCommunityIcons name="chevron-right" size={24} color={COLORS.textSecondary} />
-        </View>
-      </Card>
-    </TouchableOpacity>
+        </Card>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -188,6 +196,9 @@ export const SupplierListScreen = ({ navigation }: any) => {
         data={suppliers}
         renderItem={renderSupplier}
         keyExtractor={(item) => item.id}
+        key={`grid-${gridConfig.numColumns}`}
+        numColumns={gridConfig.numColumns}
+        columnWrapperStyle={gridConfig.numColumns > 1 ? [styles.gridRow, { gap: gridConfig.itemSpacing }] : undefined}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
@@ -381,17 +392,15 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     padding: SPACING.md,
-    gap: SPACING.sm,
     backgroundColor: COLORS.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0 2px 4px rgba(0,0,0,0.08)' }
+      : { elevation: 2 }) as any,
   },
   searchInput: {
     flex: 1,
     marginBottom: 0,
+    marginRight: SPACING.sm,
   },
   addButton: {
     width: 48,
@@ -404,10 +413,20 @@ const styles = StyleSheet.create({
   list: {
     padding: SPACING.md,
   },
+  gridRow: {
+    justifyContent: 'flex-start',
+    marginBottom: 0,
+  },
+  gridItem: {
+    marginBottom: 16,
+  },
+  supplierCardContainer: {
+    marginBottom: 0,
+    flex: 1,
+  },
   supplierCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
   },
   iconContainer: {
     width: 56,
@@ -416,6 +435,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${COLORS.primary}15`,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: SPACING.md,
   },
   supplierInfo: {
     flex: 1,
@@ -429,12 +449,12 @@ const styles = StyleSheet.create({
   supplierInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
     marginTop: 2,
   },
   infoText: {
     fontSize: FONT_SIZES.sm,
     color: COLORS.textSecondary,
+    marginLeft: 6,
   },
   emptyContainer: {
     alignItems: 'center',

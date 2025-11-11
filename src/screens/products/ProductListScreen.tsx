@@ -13,25 +13,73 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useProductStore } from '../../store/productStore';
+import { useToastStore } from '../../store/toastStore';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
 import { Product } from '../../types';
+import { getSidebarWidth } from '../../utils/platform';
 
-const { width } = Dimensions.get('window');
-const isSmallDevice = width < 375;
+const { width: screenWidth } = Dimensions.get('window');
+const isSmallDevice = screenWidth < 375;
 const isWeb = Platform.OS === 'web';
+
+// Responsive grid hesaplamaları
+const getResponsiveConfig = () => {
+  const sidebarWidth = getSidebarWidth();
+  const availableWidth = screenWidth - sidebarWidth;
+  
+  // Sütun sayısını ekran genişliğine göre belirle
+  let numColumns = 2; // Varsayılan
+  let minCardWidth = 250; // Her kartın minimum genişliği
+  
+  if (availableWidth >= 1400) {
+    numColumns = 4;
+    minCardWidth = 280;
+  } else if (availableWidth >= 1100) {
+    numColumns = 4;
+    minCardWidth = 250;
+  } else if (availableWidth >= 900) {
+    numColumns = 3;
+    minCardWidth = 250;
+  } else if (availableWidth >= 600) {
+    numColumns = 2;
+    minCardWidth = 250;
+  } else {
+    numColumns = 1;
+    minCardWidth = availableWidth - 32;
+  }
+  
+  const gridPadding = 16;
+  const itemSpacing = 16;
+  
+  // Kart genişliğini hesapla
+  const totalPadding = gridPadding * 2;
+  const totalSpacing = itemSpacing * (numColumns - 1);
+  const itemWidth = (availableWidth - totalPadding - totalSpacing) / numColumns;
+  
+  return {
+    numColumns,
+    gridPadding,
+    itemSpacing,
+    itemWidth: Math.max(itemWidth, minCardWidth),
+    cardHeight: 200,
+  };
+};
 
 export const ProductListScreen = ({ navigation }: any) => {
   const { products, isLoading, fetchProducts, deleteProduct, updateProduct } = useProductStore();
+  const { showToast } = useToastStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [gridConfig, setGridConfig] = useState(getResponsiveConfig());
   
   // Modal states
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   
   // Edit form states
@@ -44,6 +92,15 @@ export const ProductListScreen = ({ navigation }: any) => {
     minStock: '',
     description: '',
   });
+
+  // Ekran boyutu değiştiğinde grid config'i güncelle
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', () => {
+      setGridConfig(getResponsiveConfig());
+    });
+    
+    return () => subscription?.remove();
+  }, []);
 
   // Sayfa her açıldığında listeyi yenile
   useFocusEffect(
@@ -97,39 +154,26 @@ export const ProductListScreen = ({ navigation }: any) => {
   const handleEdit = () => {
     if (!selectedProduct) return;
     
-    setEditForm({
-      name: selectedProduct.name,
-      barcode: selectedProduct.barcode,
-      purchasePrice: selectedProduct.purchasePrice?.toString() || '',
-      salePrice: selectedProduct.salePrice?.toString() || '',
-      stock: selectedProduct.stock?.toString() || '',
-      minStock: selectedProduct.minStock?.toString() || '',
-      description: selectedProduct.description || '',
-    });
-    
     setDetailModalVisible(false);
-    setEditModalVisible(true);
+    navigation.navigate('EditProduct', { productId: selectedProduct.id });
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
+    if (!selectedProduct) return;
+    setDetailModalVisible(false);
+    setDeleteConfirmVisible(true);
+  };
+
+  const confirmDelete = async () => {
     if (!selectedProduct) return;
     
-    const confirmed = window.confirm(
-      `${selectedProduct.name} ürünü silmek istediğinizden emin misiniz?`
-    );
-    
-    if (!confirmed) return;
-    
     try {
-      console.log('Deleting product:', selectedProduct.id);
       await deleteProduct(String(selectedProduct.id));
-      console.log('Product deleted successfully');
-      setDetailModalVisible(false);
+      showToast('success', 'Ürün başarıyla silindi');
+      setDeleteConfirmVisible(false);
       setSelectedProduct(null);
     } catch (error: any) {
-      console.error('Delete error:', error);
-      console.error('Error response:', error.response?.data);
-      alert('Ürün silinemedi: ' + (error.response?.data?.detail || error.message));
+      showToast('error', error.response?.data?.detail || 'Ürün silinemedi');
     }
   };
 
@@ -194,109 +238,105 @@ export const ProductListScreen = ({ navigation }: any) => {
     return badges;
   };
 
-  const renderProduct = ({ item }: { item: Product }) => {
+  const renderProduct = ({ item, index }: { item: Product; index: number }) => {
     const totalStock = getTotalStock(item);
     const badges = getProductBadges(item);
     
     return (
-      <TouchableOpacity
-        onPress={() => handleProductPress(item)}
-        activeOpacity={0.7}
-      >
-        <Card>
-          <View style={styles.productCard}>
-            <View style={styles.productInfo}>
-              {/* Etiketler */}
-              {badges.length > 0 && (
-                <View style={styles.badgesContainer}>
-                  {badges.map((badge, index) => (
-                    <View 
-                      key={index} 
-                      style={[styles.badge, { backgroundColor: badge.color }]}
-                    >
-                      <Text style={styles.badgeText}>{badge.label}</Text>
-                    </View>
-                  ))}
+      <View style={[styles.productGridItem, { width: gridConfig.itemWidth }]}>
+        <TouchableOpacity
+          onPress={() => handleProductPress(item)}
+          activeOpacity={0.7}
+          style={[styles.productGridCard, { height: gridConfig.cardHeight }]}
+        >
+          {/* Etiketler - Üstte */}
+          {badges.length > 0 && (
+            <View style={styles.badgesContainer}>
+              {badges.slice(0, 2).map((badge, idx) => (
+                <View 
+                  key={idx} 
+                  style={[styles.badge, { backgroundColor: badge.color }]}
+                >
+                  <Text style={styles.badgeText}>{badge.label}</Text>
                 </View>
-              )}
-              
-              <Text style={[styles.productName, isSmallDevice && styles.productNameSmall]}>
-                {item.name}
-              </Text>
-              
-              <View style={styles.productMeta}>
-                {item.category && (
-                  <View style={styles.categoryBadge}>
-                    <MaterialCommunityIcons 
-                      name="tag" 
-                      size={14} 
-                      color={COLORS.primary} 
-                    />
-                    <Text style={styles.categoryText}>
-                      {typeof item.category === 'string' ? item.category : item.category.name}
-                    </Text>
-                  </View>
-                )}
-                
-                {item.brand && (
-                  <Text style={styles.brandText}>• {item.brand}</Text>
-                )}
-              </View>
-
-              {/* Beden ve renk bilgisi */}
-              {item.sizes && item.sizes.length > 0 && (
-                <View style={styles.sizesContainer}>
-                  <Text style={styles.sizeLabel}>Bedenler: </Text>
-                  <Text style={styles.sizeList}>
-                    {item.sizes.map(s => s.size).join(', ')}
-                  </Text>
-                </View>
-              )}
-
-              {item.colors && item.colors.length > 0 && (
-                <View style={styles.colorsContainer}>
-                  {item.colors.slice(0, 3).map((color, index) => (
-                    <View
-                      key={index}
-                      style={[
-                        styles.colorDot,
-                        { backgroundColor: color.hexCode || COLORS.textSecondary }
-                      ]}
-                    />
-                  ))}
-                  {item.colors.length > 3 && (
-                    <Text style={styles.moreColors}>+{item.colors.length - 3}</Text>
-                  )}
-                </View>
-              )}
-              
-              <Text style={[styles.productPrice, isSmallDevice && styles.productPriceSmall]}>
-                ₺{item.salePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-              </Text>
+              ))}
             </View>
+          )}
+          
+          {/* Stok Badge - Sağ üst köşe */}
+          <View style={[
+            styles.stockBadgeGrid,
+            { backgroundColor: getStockColor(totalStock, item.minStock) }
+          ]}>
+            <Text style={styles.stockTextGrid}>{totalStock}</Text>
+          </View>
+          
+          {/* Ürün Bilgileri */}
+          <View style={styles.gridProductInfo}>
+            <Text style={styles.gridProductName} numberOfLines={2}>
+              {item.name}
+            </Text>
             
-            <View style={styles.productRight}>
-              <View style={[
-                styles.stockBadge,
-                { backgroundColor: `${getStockColor(totalStock, item.minStock)}20` }
-              ]}>
-                <MaterialCommunityIcons
-                  name="hanger"
-                  size={isSmallDevice ? 14 : 16}
-                  color={getStockColor(totalStock, item.minStock)}
+            {/* Kategori */}
+            {item.category && (
+              <View style={styles.gridCategoryBadge}>
+                <MaterialCommunityIcons 
+                  name="tag" 
+                  size={12} 
+                  color={COLORS.primary} 
                 />
-                <Text style={[
-                  styles.stockText,
-                  isSmallDevice && styles.stockTextSmall,
-                  { color: getStockColor(totalStock, item.minStock) }
-                ]}>
-                  {totalStock}
+                <Text style={styles.gridCategoryText} numberOfLines={1}>
+                  {typeof item.category === 'string' ? item.category : item.category.name}
                 </Text>
               </View>
-            </View>
+            )}
+
+            {/* Beden bilgisi */}
+            {item.sizes && item.sizes.length > 0 && (
+              <View style={styles.gridSizesContainer}>
+                <Text style={styles.gridSizeText}>
+                  {item.sizes.slice(0, 3).map(s => s.size).join(', ')}
+                  {item.sizes.length > 3 && ` +${item.sizes.length - 3}`}
+                </Text>
+              </View>
+            )}
+
+            {/* Renk dots */}
+            {item.colors && item.colors.length > 0 && (
+              <View style={styles.gridColorsContainer}>
+                {item.colors.slice(0, 5).map((color, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.gridColorDot,
+                      { backgroundColor: color.hexCode || COLORS.textSecondary }
+                    ]}
+                  />
+                ))}
+                {item.colors.length > 5 && (
+                  <Text style={styles.gridMoreColors}>+{item.colors.length - 5}</Text>
+                )}
+              </View>
+            )}
+            
+            {/* Fiyat */}
+            <Text style={styles.gridProductPrice}>
+              {`₺${item.salePrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`}
+            </Text>
           </View>
-        </Card>
-      </TouchableOpacity>
+          
+          {/* Hızlı düzenleme butonu */}
+          <TouchableOpacity
+            style={styles.gridQuickEditButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              navigation.navigate('EditProduct', { productId: item.id });
+            }}
+          >
+            <MaterialCommunityIcons name="pencil" size={16} color={COLORS.primary} />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -325,12 +365,15 @@ export const ProductListScreen = ({ navigation }: any) => {
         </TouchableOpacity>
       </View>
 
-      {/* Product List */}
+      {/* Product List - Grid */}
       <FlatList
         data={products}
         renderItem={renderProduct}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={styles.list}
+        numColumns={gridConfig.numColumns}
+        key={`grid-${gridConfig.numColumns}`}
+        columnWrapperStyle={gridConfig.numColumns > 1 ? styles.productGridRow : undefined}
+        contentContainerStyle={styles.productGridContainer}
         refreshControl={
           <RefreshControl 
             refreshing={refreshing} 
@@ -394,7 +437,7 @@ export const ProductListScreen = ({ navigation }: any) => {
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Alış Fiyatı:</Text>
                   <Text style={styles.detailValue}>
-                    ₺{selectedProduct.purchasePrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                    {`₺${selectedProduct.purchasePrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`}
                   </Text>
                 </View>
               </View>
@@ -403,7 +446,7 @@ export const ProductListScreen = ({ navigation }: any) => {
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Satış Fiyatı:</Text>
                   <Text style={[styles.detailValue, styles.priceHighlight]}>
-                    ₺{selectedProduct.salePrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                    {`₺${selectedProduct.salePrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`}
                   </Text>
                 </View>
               </View>
@@ -535,6 +578,41 @@ export const ProductListScreen = ({ navigation }: any) => {
           </View>
         </ScrollView>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteConfirmVisible}
+        onClose={() => setDeleteConfirmVisible(false)}
+        title="Ürünü Sil"
+      >
+        <View style={styles.confirmContent}>
+          <MaterialCommunityIcons 
+            name="alert-circle-outline" 
+            size={64} 
+            color={COLORS.error} 
+            style={{ alignSelf: 'center', marginBottom: SPACING.lg }}
+          />
+          <Text style={styles.confirmText}>
+            {selectedProduct?.name} ürününü silmek istediğinizden emin misiniz?
+          </Text>
+          <Text style={styles.confirmSubtext}>
+            Bu işlem geri alınamaz.
+          </Text>
+          
+          <View style={styles.modalActions}>
+            <Button
+              title="İptal"
+              onPress={() => setDeleteConfirmVisible(false)}
+              variant="outline"
+            />
+            <Button
+              title="Sil"
+              onPress={confirmDelete}
+              style={{ backgroundColor: COLORS.error }}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -550,14 +628,8 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     backgroundColor: COLORS.surface,
     ...(Platform.OS === 'web'
-      ? ({ boxShadow: '0 2px 4px rgba(0,0,0,0.08)' } as any)
-      : {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
-          elevation: 2,
-        }),
+      ? { boxShadow: '0 2px 4px rgba(0,0,0,0.08)' }
+      : { elevation: 2 }) as any,
   },
   searchInput: {
     flex: 1,
@@ -580,7 +652,142 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  list: {
+  
+  // Grid Layout Styles
+  productGridContainer: {
+    padding: 16,
+  },
+  productGridRow: {
+    justifyContent: 'flex-start',
+    marginBottom: 16,
+    gap: 16,
+  },
+  productGridItem: {
+    // Width dinamik set edilecek
+  },
+  productGridCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.md,
+    padding: 12,
+    // Height dinamik set edilecek
+    position: 'relative',
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }
+      : { elevation: 2 }) as any,
+  },
+  
+  // Grid içindeki bileşenler
+  gridProductInfo: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  gridProductName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 6,
+    lineHeight: 18,
+  },
+  gridCategoryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${COLORS.primary}10`,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.sm,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
+  gridCategoryText: {
+    fontSize: 10,
+    color: COLORS.primary,
+    marginLeft: 2,
+    fontWeight: '500',
+  },
+  gridSizesContainer: {
+    marginBottom: 4,
+  },
+  gridSizeText: {
+    fontSize: 10,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  gridColorsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    flexWrap: 'wrap',
+  },
+  gridColorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginRight: 4,
+    marginBottom: 2,
+  },
+  gridMoreColors: {
+    fontSize: 9,
+    color: COLORS.textSecondary,
+  },
+  gridProductPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginTop: 4,
+  },
+  stockBadgeGrid: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.sm,
+    minWidth: 28,
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  stockTextGrid: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.surface,
+  },
+  gridQuickEditButton: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.round,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  
+  // Eski list stiller (modal için hala gerekli)
+  listContainer: {
+    padding: 16,
+  },
+  gridRow: {
+    justifyContent: 'flex-start',
+    paddingHorizontal: 0,
+  },
+  gridItem: {
+    marginRight: 16,
+    marginBottom: 16,
+  },
+  gridCard: {
+    height: 220,
+    margin: 0,
+  },
+  gridCardTouchable: {
+    flex: 1,
     padding: SPACING.md,
   },
   productCard: {
@@ -688,6 +895,22 @@ const styles = StyleSheet.create({
   stockTextSmall: {
     fontSize: 11,
   },
+  quickEditButton: {
+    position: 'absolute',
+    right: SPACING.md,
+    bottom: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.round,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -751,5 +974,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: SPACING.md,
     marginTop: SPACING.lg,
+  },
+  confirmContent: {
+    padding: SPACING.md,
+  },
+  confirmText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+    fontWeight: '500',
+  },
+  confirmSubtext: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
   },
 });

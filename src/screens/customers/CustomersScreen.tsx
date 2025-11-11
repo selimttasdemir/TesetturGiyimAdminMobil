@@ -12,6 +12,7 @@ import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
 import { useAuthStore } from '../../store/authStore';
+import { useResponsiveGrid } from '../../hooks/useResponsiveGrid';
 
 interface Customer {
   id: number;
@@ -28,6 +29,9 @@ export const CustomersScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { token } = useAuthStore();
+  
+  // Responsive grid - 2 sütun için (min 350px kart genişliği, 220px yükseklik)
+  const gridConfig = useResponsiveGrid(350, 220);
 
   useEffect(() => {
     loadCustomers();
@@ -66,34 +70,36 @@ export const CustomersScreen = () => {
   );
 
   const renderCustomerItem = ({ item }: { item: Customer }) => (
-    <TouchableOpacity style={styles.customerCard}>
-      <View style={styles.customerHeader}>
-        <View style={styles.avatar}>
-          <MaterialCommunityIcons name="account" size={24} color={COLORS.primary} />
+    <View style={[styles.gridItem, { width: gridConfig.itemWidth }]}>
+      <TouchableOpacity style={[styles.customerCard, { minHeight: gridConfig.cardHeight }]}>
+        <View style={styles.customerHeader}>
+          <View style={styles.avatar}>
+            <MaterialCommunityIcons name="account" size={24} color={COLORS.primary} />
+          </View>
+          <View style={styles.customerInfo}>
+            <Text style={styles.customerName}>{item.name}</Text>
+            <Text style={styles.customerEmail}>{item.email}</Text>
+            {item.phone && (
+              <Text style={styles.customerPhone}>{item.phone}</Text>
+            )}
+          </View>
         </View>
-        <View style={styles.customerInfo}>
-          <Text style={styles.customerName}>{item.name}</Text>
-          <Text style={styles.customerEmail}>{item.email}</Text>
-          {item.phone && (
-            <Text style={styles.customerPhone}>{item.phone}</Text>
-          )}
-        </View>
-      </View>
 
-      <View style={styles.customerStats}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{item.totalOrders || 0}</Text>
-          <Text style={styles.statLabel}>Sipariş</Text>
+        <View style={styles.customerStats}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{item.totalOrders || 0}</Text>
+            <Text style={styles.statLabel}>Sipariş</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>
+              ₺{(item.totalSpent || 0).toLocaleString('tr-TR')}
+            </Text>
+            <Text style={styles.statLabel}>Toplam Harcama</Text>
+          </View>
         </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>
-            ₺{(item.totalSpent || 0).toLocaleString('tr-TR')}
-          </Text>
-          <Text style={styles.statLabel}>Toplam Harcama</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -111,6 +117,9 @@ export const CustomersScreen = () => {
         data={filteredCustomers}
         renderItem={renderCustomerItem}
         keyExtractor={(item) => item.id.toString()}
+        key={`grid-${gridConfig.numColumns}`}
+        numColumns={gridConfig.numColumns}
+        columnWrapperStyle={gridConfig.numColumns > 1 ? [styles.gridRow, { gap: gridConfig.itemSpacing }] : undefined}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
@@ -149,11 +158,18 @@ const styles = StyleSheet.create({
   list: {
     padding: SPACING.md,
   },
+  gridRow: {
+    justifyContent: 'flex-start',
+    marginBottom: 0,
+  },
+  gridItem: {
+    marginBottom: 16,
+  },
   customerCard: {
     backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
-    marginBottom: SPACING.md,
+    marginBottom: 0,
     borderWidth: 1,
     borderColor: COLORS.border,
   },

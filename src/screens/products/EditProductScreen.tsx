@@ -5,12 +5,16 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
+  Image,
+  Platform,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useProductStore } from '../../store/productStore';
 import { useSupplierStore } from '../../store/supplierStore';
+import { useCategoryStore } from '../../store/categoryStore';
+import { useToastStore } from '../../store/toastStore';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
@@ -22,11 +26,13 @@ export const EditProductScreen = ({ route, navigation }: any) => {
   const { productId } = route.params;
   const { products, updateProduct, isLoading } = useProductStore();
   const { suppliers, fetchSuppliers } = useSupplierStore();
+  const { categories, fetchCategories } = useCategoryStore();
+  const { showToast } = useToastStore();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [barcode, setBarcode] = useState('');
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [description, setDescription] = useState('');
   const [purchasePrice, setPurchasePrice] = useState('');
   const [salePrice, setSalePrice] = useState('');
@@ -42,6 +48,11 @@ export const EditProductScreen = ({ route, navigation }: any) => {
   const [careInstructions, setCareInstructions] = useState('');
   const [sizes, setSizes] = useState<ClothingSize[]>([]);
   const [colors, setColors] = useState<ClothingColor[]>([]);
+
+  // Fotoğraf yönetimi
+  const MIN_IMAGES = 4;
+  const MAX_IMAGES = 10;
+  const [productImages, setProductImages] = useState<string[]>([]);
 
   const [showSizeModal, setShowSizeModal] = useState(false);
   const [showColorModal, setShowColorModal] = useState(false);
@@ -59,6 +70,7 @@ export const EditProductScreen = ({ route, navigation }: any) => {
       loadProductData(foundProduct);
     }
     fetchSuppliers();
+    fetchCategories();
   }, [productId, products]);
 
   useEffect(() => {
@@ -78,7 +90,7 @@ export const EditProductScreen = ({ route, navigation }: any) => {
   const loadProductData = (p: Product) => {
     setBarcode(p.barcode);
     setName(p.name);
-    setCategory(typeof p.category === 'string' ? p.category : p.category.name);
+    setCategoryId(typeof p.category === 'string' ? p.category : (p.categoryId || p.category?.id || ''));
     setDescription(p.description || '');
     setPurchasePrice(p.purchasePrice.toString());
     setSalePrice(p.salePrice.toString());
@@ -94,23 +106,33 @@ export const EditProductScreen = ({ route, navigation }: any) => {
     setCareInstructions(p.careInstructions || '');
     setSizes(p.sizes || []);
     setColors(p.colors || []);
+    
+    // Fotoğrafları yükle (imageUrl JSON string ise parse et)
+    if (p.imageUrl) {
+      try {
+        const parsedImages = JSON.parse(p.imageUrl);
+        if (Array.isArray(parsedImages)) {
+          setProductImages(parsedImages);
+        } else {
+          setProductImages([p.imageUrl]); // Tek fotoğraf ise array'e çevir
+        }
+      } catch {
+        // Parse edilemezse tek fotoğraf olarak kabul et
+        setProductImages([p.imageUrl]);
+      }
+    }
   };
-
-  const categories = [
-    'Ferace', 'Tunik', 'Pardesü', 'Şal', 'Eşarp', 
-    'Bone', 'Peçe', 'Çarşaf', 'Etek', 'Pantolon'
-  ];
 
   const commonSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '36', '38', '40', '42', '44', '46'];
 
   const handleAddSize = () => {
     if (!newSize || !newSizeStock) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      showToast('error', 'Lütfen tüm alanları doldurun');
       return;
     }
     const stockNum = parseInt(newSizeStock, 10);
     if (isNaN(stockNum) || stockNum < 0) {
-      Alert.alert('Hata', 'Geçerli bir stok miktarı girin');
+      showToast('error', 'Geçerli bir stok miktarı girin');
       return;
     }
     setSizes([...sizes, { size: newSize, stock: stockNum }]);
@@ -125,12 +147,12 @@ export const EditProductScreen = ({ route, navigation }: any) => {
 
   const handleAddColor = () => {
     if (!newColorName || !newColorStock) {
-      Alert.alert('Hata', 'Lütfen renk adı ve stok miktarını girin');
+      showToast('error', 'Lütfen renk adı ve stok miktarını girin');
       return;
     }
     const stockNum = parseInt(newColorStock, 10);
     if (isNaN(stockNum) || stockNum < 0) {
-      Alert.alert('Hata', 'Geçerli bir stok miktarı girin');
+      showToast('error', 'Geçerli bir stok miktarı girin');
       return;
     }
     setColors([...colors, { name: newColorName, hexCode: newColorHex, stock: stockNum }]);
@@ -144,9 +166,47 @@ export const EditProductScreen = ({ route, navigation }: any) => {
     setColors(colors.filter((_, i) => i !== index));
   };
 
+  // Fotoğraf yönetimi fonksiyonları
+  const handleImageUpload = (event: any) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const remainingSlots = MAX_IMAGES - productImages.length;
+    if (remainingSlots <= 0) {
+      Alert.alert('Maksimum Limit', `En fazla ${MAX_IMAGES} fotoğraf yükleyebilirsiniz`);
+      return;
+    }
+
+    const filesToProcess = Array.from(files).slice(0, remainingSlots);
+    const imageUrls: string[] = [];
+
+    filesToProcess.forEach((file: any) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        imageUrls.push(reader.result as string);
+        if (imageUrls.length === filesToProcess.length) {
+          setProductImages([...productImages, ...imageUrls]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setProductImages(productImages.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
-    if (!barcode || !name || !category) {
-      Alert.alert('Hata', 'Lütfen zorunlu alanları doldurun');
+    console.log('handleSubmit called');
+    
+    // Fotoğraf validasyonu
+    if (productImages.length < MIN_IMAGES) {
+      Alert.alert('Eksik Fotoğraf', `En az ${MIN_IMAGES} fotoğraf eklemelisiniz. Şu an ${productImages.length} fotoğraf var.`);
+      return;
+    }
+    
+    if (!barcode || !name || !categoryId) {
+      showToast('error', 'Lütfen zorunlu alanları doldurun');
       return;
     }
 
@@ -156,12 +216,12 @@ export const EditProductScreen = ({ route, navigation }: any) => {
     const minStockNum = parseInt(minStock, 10);
 
     if (isNaN(purchasePriceNum) || isNaN(salePriceNum) || purchasePriceNum < 0 || salePriceNum < 0) {
-      Alert.alert('Hata', 'Geçerli fiyat değerleri girin');
+      showToast('error', 'Geçerli fiyat değerleri girin');
       return;
     }
 
     if (isNaN(stockNum) || isNaN(minStockNum) || stockNum < 0 || minStockNum < 0) {
-      Alert.alert('Hata', 'Geçerli stok değerleri girin');
+      showToast('error', 'Geçerli stok değerleri girin');
       return;
     }
 
@@ -173,7 +233,7 @@ export const EditProductScreen = ({ route, navigation }: any) => {
     const productData: any = {
       barcode,
       name,
-      category: { id: category, name: category },
+      categoryId: parseInt(categoryId),
       description,
       purchasePrice: purchasePriceNum,
       salePrice: salePriceNum,
@@ -189,15 +249,18 @@ export const EditProductScreen = ({ route, navigation }: any) => {
       careInstructions,
       sizes: sizes.length > 0 ? sizes : undefined,
       colors: colors.length > 0 ? colors : undefined,
+      imageUrl: productImages.length > 0 ? JSON.stringify(productImages) : undefined, // Fotoğrafları JSON string olarak kaydet
     };
+
+    console.log('Updating product:', productId, productData);
 
     try {
       await updateProduct(productId, productData);
-      Alert.alert('Başarılı', 'Ürün başarıyla güncellendi', [
-        { text: 'Tamam', onPress: () => navigation.goBack() }
-      ]);
+      showToast('success', 'Ürün başarıyla güncellendi');
+      setTimeout(() => navigation.goBack(), 1500);
     } catch (error) {
-      Alert.alert('Hata', 'Ürün güncellenirken bir hata oluştu');
+      console.error('Update error:', error);
+      showToast('error', 'Ürün güncellenirken bir hata oluştu');
     }
   };
 
@@ -227,22 +290,96 @@ export const EditProductScreen = ({ route, navigation }: any) => {
           
           <Input label="Ürün Adı *" value={name} onChangeText={setName} />
           
-          <Text style={styles.inputLabel}>Kategori *</Text>
+                    <Text style={styles.inputLabel}>Kategori *</Text>
           <View style={styles.categoryGrid}>
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={[styles.categoryChip, category === cat && styles.categoryChipSelected]}
-                onPress={() => setCategory(cat)}
-              >
-                <Text style={[styles.categoryChipText, category === cat && styles.categoryChipTextSelected]}>
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {categories.length === 0 ? (
+              <Text style={styles.noCategoryText}>
+                Henüz kategori yok. Kategori sayfasından kategori ekleyin.
+              </Text>
+            ) : (
+              categories.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  style={[
+                    styles.categoryChip,
+                    categoryId === cat.id && styles.categoryChipSelected
+                  ]}
+                  onPress={() => setCategoryId(cat.id)}
+                >
+                  <Text style={[
+                    styles.categoryChipText,
+                    categoryId === cat.id && styles.categoryChipTextSelected
+                  ]}>
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
 
           <Input label="Açıklama" value={description} onChangeText={setDescription} multiline numberOfLines={3} />
+        </Card>
+
+        {/* Ürün Fotoğrafları */}
+        <Card>
+          <View style={styles.photoHeader}>
+            <Text style={styles.sectionTitle}>Ürün Fotoğrafları *</Text>
+            <Text style={styles.photoRequirement}>
+              ({productImages.length}/{MIN_IMAGES} - Min {MIN_IMAGES}, Maks {MAX_IMAGES})
+            </Text>
+          </View>
+          
+          <View style={styles.photoGrid}>
+            {productImages.map((image, index) => (
+              <View key={index} style={styles.photoItem}>
+                <Image source={{ uri: image }} style={styles.photoImage} />
+                <TouchableOpacity
+                  style={styles.removePhotoButton}
+                  onPress={() => handleRemoveImage(index)}
+                >
+                  <MaterialCommunityIcons name="close-circle" size={24} color={COLORS.error} />
+                </TouchableOpacity>
+                {index === 0 && (
+                  <View style={styles.mainPhotoBadge}>
+                    <Text style={styles.mainPhotoText}>Ana</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+            
+            {productImages.length < MAX_IMAGES && (
+              <TouchableOpacity
+                style={styles.addPhotoButton}
+                onPress={() => {
+                  if (Platform.OS === 'web') {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.multiple = true;
+                    input.onchange = handleImageUpload;
+                    input.click();
+                  }
+                }}
+              >
+                <MaterialCommunityIcons name="camera-plus" size={32} color={COLORS.textSecondary} />
+                <Text style={styles.addPhotoText}>Fotoğraf Ekle</Text>
+                <Text style={styles.addPhotoSubtext}>
+                  {productImages.length < MIN_IMAGES 
+                    ? `${MIN_IMAGES - productImages.length} fotoğraf daha gerekli` 
+                    : `${MAX_IMAGES - productImages.length} fotoğraf daha ekleyebilirsiniz`}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          {productImages.length > 0 && productImages.length < MIN_IMAGES && (
+            <View style={styles.warningBox}>
+              <MaterialCommunityIcons name="alert" size={20} color={COLORS.warning} />
+              <Text style={styles.warningText}>
+                En az {MIN_IMAGES} fotoğraf eklemelisiniz. Şu an {MIN_IMAGES - productImages.length} fotoğraf eksik.
+              </Text>
+            </View>
+          )}
         </Card>
 
         <Card>
@@ -416,6 +553,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: SPACING.md },
   halfInput: { flex: 1 },
   categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm, marginBottom: SPACING.md },
+  noCategoryText: { fontSize: FONT_SIZES.sm, color: COLORS.textSecondary, fontStyle: 'italic', padding: SPACING.md, textAlign: 'center' },
   categoryChip: { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border },
   categoryChipSelected: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   categoryChipText: { fontSize: FONT_SIZES.sm },
@@ -457,4 +595,98 @@ const styles = StyleSheet.create({
   quickSizeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs, marginBottom: SPACING.md },
   quickSizeChip: { paddingHorizontal: SPACING.sm, paddingVertical: SPACING.xs, borderRadius: BORDER_RADIUS.sm, backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border },
   supplierItem: { padding: SPACING.md, borderRadius: BORDER_RADIUS.md, backgroundColor: COLORS.background, marginBottom: SPACING.sm },
+  photoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  photoRequirement: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
+  },
+  photoItem: {
+    width: 100,
+    height: 100,
+    position: 'relative',
+    borderRadius: BORDER_RADIUS.md,
+    overflow: 'hidden',
+  },
+  photoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: BORDER_RADIUS.md,
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    ...(Platform.OS === 'web' 
+      ? { boxShadow: '0 2px 4px rgba(0,0,0,0.1)' } 
+      : { elevation: 2 }) as any,
+  },
+  mainPhotoBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 2,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  mainPhotoText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.surface,
+    fontWeight: '600',
+  },
+  addPhotoButton: {
+    width: 100,
+    height: 100,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    borderStyle: 'dashed',
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xs,
+  },
+  addPhotoText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
+    marginTop: SPACING.xs,
+    textAlign: 'center',
+  },
+  addPhotoSubtext: {
+    fontSize: 10,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    padding: SPACING.sm,
+    backgroundColor: `${COLORS.warning}15`,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: `${COLORS.warning}30`,
+    marginTop: SPACING.md,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.warning,
+    fontWeight: '500',
+  },
 });

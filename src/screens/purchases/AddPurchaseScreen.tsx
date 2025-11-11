@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { usePurchaseStore } from '../../store/purchaseStore';
 import { useSupplierStore } from '../../store/supplierStore';
+import { useToastStore } from '../../store/toastStore';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
@@ -16,13 +16,14 @@ import { COLORS, SPACING, FONT_SIZES } from '../../constants';
 export const AddPurchaseScreen = ({ navigation }: any) => {
   const { createPurchase, isLoading } = usePurchaseStore();
   const { suppliers } = useSupplierStore();
+  const { showToast } = useToastStore();
 
   const [supplierId, setSupplierId] = useState('');
   const [notes, setNotes] = useState('');
 
   const handleSubmit = async () => {
     if (!supplierId) {
-      Alert.alert('Hata', 'Lütfen tedarikçi seçin');
+      showToast('error', 'Lütfen tedarikçi seçin');
       return;
     }
 
@@ -34,11 +35,10 @@ export const AddPurchaseScreen = ({ navigation }: any) => {
 
     const success = await createPurchase(purchaseData as any);
     if (success) {
-      Alert.alert('Başarılı', 'Satın alma kaydı oluşturuldu', [
-        { text: 'Tamam', onPress: () => navigation.goBack() }
-      ]);
+      showToast('success', 'Satın alma kaydı oluşturuldu');
+      setTimeout(() => navigation.goBack(), 1500);
     } else {
-      Alert.alert('Hata', 'Satın alma kaydı oluşturulamadı');
+      showToast('error', 'Satın alma kaydı oluşturulamadı');
     }
   };
 

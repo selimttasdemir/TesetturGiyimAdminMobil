@@ -35,7 +35,7 @@ export const SettingsScreen = ({ navigation }: any) => {
           style: 'destructive',
           onPress: async () => {
             await logout();
-            navigation.navigate('Login');
+            // Auth state değişince RootNavigator otomatik olarak AuthNavigator'a yönlendirecek
           },
         },
       ]
@@ -196,7 +196,6 @@ const styles = StyleSheet.create({
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
   },
   userAvatar: {
     width: 80,
@@ -205,6 +204,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${COLORS.primary}15`,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: SPACING.md,
   },
   userName: {
     fontSize: FONT_SIZES.xl,
@@ -243,7 +243,6 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
-    gap: SPACING.md,
   },
   iconContainer: {
     width: 40,
@@ -252,6 +251,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${COLORS.primary}15`,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: SPACING.md,
   },
   settingContent: {
     flex: 1,

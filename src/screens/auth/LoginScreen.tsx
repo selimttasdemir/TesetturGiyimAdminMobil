@@ -58,10 +58,10 @@ export const LoginScreen = ({ navigation }: any) => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoEmoji}>🛒</Text>
+            <Text style={styles.logoEmoji}>�</Text>
           </View>
-          <Text style={styles.title}>Mobil Market</Text>
-          <Text style={styles.subtitle}>Hoş Geldiniz</Text>
+          <Text style={styles.title}>Tesettür Giyim</Text>
+          <Text style={styles.subtitle}>Admin Panel</Text>
         </View>
 
         <View style={styles.form}>
@@ -137,14 +137,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: SPACING.lg,
     ...(Platform.OS === 'web'
-      ? ({ boxShadow: '0 4px 8px rgba(0,0,0,0.12)' } as any)
-      : {
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-          elevation: 4,
-        }),
+      ? { boxShadow: '0 4px 8px rgba(0,0,0,0.12)' }
+      : { elevation: 4 }) as any,
   },
   logoEmoji: {
     fontSize: 50,

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Alert,
   Dimensions,
   Platform,
   ScrollView,
@@ -13,6 +12,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useProductStore } from '../../store/productStore';
 import { useSaleStore } from '../../store/saleStore';
+import { useToastStore } from '../../store/toastStore';
 import customerService from '../../services/customer.service';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
@@ -27,6 +27,7 @@ const isMobile = Platform.OS !== 'web' || width < 768;
 
 export const NewSaleScreen = ({ navigation }: any) => {
   const { products, fetchProducts } = useProductStore();
+  const { showToast } = useToastStore();
   const {
     cart,
     addToCart,
@@ -87,7 +88,7 @@ export const NewSaleScreen = ({ navigation }: any) => {
 
   const handleCompleteSale = async () => {
     if (cart.length === 0) {
-      Alert.alert('Hata', 'Sepetiniz boş');
+      showToast('error', 'Sepetiniz boş');
       return;
     }
 
@@ -100,9 +101,9 @@ export const NewSaleScreen = ({ navigation }: any) => {
         const product = products?.find((p) => p.barcode === barcode);
         if (product) {
           handleAddProduct(product);
-          Alert.alert('Başarılı', `${product.name} sepete eklendi`);
+          showToast('success', `${product.name} sepete eklendi`);
         } else {
-          Alert.alert('Ürün Bulunamadı', `Barkod: ${barcode} için ürün bulunamadı`);
+          showToast('error', `Barkod: ${barcode} için ürün bulunamadı`);
         }
       },
     });
@@ -111,7 +112,7 @@ export const NewSaleScreen = ({ navigation }: any) => {
   const handlePayment = async () => {
     // Müşteri kontrolü
     if (!selectedCustomer) {
-      Alert.alert('Hata', 'Lütfen müşteri bilgilerini girin veya seçin');
+      showToast('error', 'Lütfen müşteri bilgilerini girin veya seçin');
       return;
     }
 
@@ -135,27 +136,25 @@ export const NewSaleScreen = ({ navigation }: any) => {
         ? `Satış tamamlandı. Kalan borç: ₺${(getCartTotal() - (parseFloat(paidAmount) || 0)).toFixed(2)}`
         : 'Satış başarıyla tamamlandı';
 
-      Alert.alert('Başarılı', message, [
-        {
-          text: 'Tamam',
-          onPress: () => {
-            // Temizle
-            setSelectedCustomer(null);
-            setSelectedPayment('nakit');
-            setPaidAmount('');
-            setShowNewCustomerForm(false);
-            setNewCustomer({ name: '', phone: '', tc: '', address: '' });
-            navigation.goBack();
-          }
-        },
-      ]);
+      showToast('success', message);
+      
+      // Temizle ve geri dön
+      setTimeout(() => {
+        setSelectedCustomer(null);
+        setSelectedPayment('nakit');
+        setPaidAmount('');
+        setShowNewCustomerForm(false);
+        setNewCustomer({ name: '', phone: '', tc: '', address: '' });
+        navigation.goBack();
+      }, 1500);
     } catch (error: any) {
       console.error('Payment error:', error);
-      console.error('Error response:', error.response?.data);
       const errorMessage = error.response?.data?.detail 
-        ? JSON.stringify(error.response.data.detail, null, 2)
+        ? (typeof error.response.data.detail === 'string' 
+            ? error.response.data.detail 
+            : JSON.stringify(error.response.data.detail))
         : error.message || 'Satış oluşturulamadı';
-      Alert.alert('Hata', errorMessage);
+      showToast('error', errorMessage);
     }
   };
 
@@ -506,7 +505,7 @@ export const NewSaleScreen = ({ navigation }: any) => {
                       title="Kaydet ve Devam Et"
                       onPress={async () => {
                         if (!newCustomer.name || !newCustomer.phone) {
-                          Alert.alert('Hata', 'Ad Soyad ve Telefon alanları zorunludur');
+                          showToast('error', 'Ad Soyad ve Telefon alanları zorunludur');
                           return;
                         }
                         try {
@@ -520,9 +519,9 @@ export const NewSaleScreen = ({ navigation }: any) => {
                           setShowNewCustomerForm(false);
                           setNewCustomer({ name: '', phone: '', tc: '', address: '' });
                           await loadCustomers();
-                          Alert.alert('Başarılı', 'Müşteri kaydedildi');
+                          showToast('success', 'Müşteri kaydedildi');
                         } catch (error) {
-                          Alert.alert('Hata', 'Müşteri kaydedilemedi');
+                          showToast('error', 'Müşteri kaydedilemedi');
                         }
                       }}
                       style={{ flex: 2 }}
@@ -546,7 +545,7 @@ export const NewSaleScreen = ({ navigation }: any) => {
                     onPress={() => {
                       if (method === 'veresiye' && !selectedCustomer) {
                         setShowCustomerModal(true);
-                        Alert.alert('Bilgi', 'Lütfen bir müşteri seçin');
+                        showToast('info', 'Lütfen bir müşteri seçin');
                       } else {
                         setSelectedPayment(method);
                       }
@@ -855,15 +854,10 @@ export const NewSaleScreen = ({ navigation }: any) => {
                   <Button
                     title="Kaydet ve Devam Et"
                     onPress={async () => {
-                      console.log('1. Kaydet butonuna basıldı');
-                      console.log('2. Form verileri:', newCustomer);
-                      
                       if (!newCustomer.name || !newCustomer.phone) {
-                        Alert.alert('Hata', 'Ad Soyad ve Telefon alanları zorunludur');
+                        showToast('error', 'Ad Soyad ve Telefon alanları zorunludur');
                         return;
                       }
-                      
-                      console.log('3. Validation geçti, API çağrısı yapılıyor...');
                       
                       try {
                         const customerData: any = {
@@ -871,30 +865,18 @@ export const NewSaleScreen = ({ navigation }: any) => {
                           phone: newCustomer.phone,
                           address: newCustomer.address || '',
                         };
-                        // Email boşsa gönderme (backend EmailStr validation hatası veriyor)
-                        // email: undefined olarak bırak, axios otomatik siler
-                        
-                        console.log('3.5. Gönderilecek veri:', customerData);
                         
                         const response = await customerService.createCustomer(customerData);
-                        
-                        console.log('4. API Response:', response);
-                        console.log('5. Response.data:', response.data);
-                        
                         const customer = (response.data || response) as Customer;
-                        console.log('6. Extracted customer:', customer);
                         
                         setSelectedCustomer(customer);
                         setShowNewCustomerForm(false);
                         setNewCustomer({ name: '', phone: '', tc: '', address: '' });
                         await loadCustomers();
                         
-                        Alert.alert('Başarılı', 'Müşteri kaydedildi');
+                        showToast('success', 'Müşteri kaydedildi');
                       } catch (error: any) {
-                        console.error('7. HATA:', error);
-                        console.error('8. Error response:', error.response?.data);
-                        console.error('9. Error message:', error.message);
-                        Alert.alert('Hata', error.response?.data?.detail || error.message || 'Müşteri kaydedilemedi');
+                        showToast('error', error.response?.data?.detail || error.message || 'Müşteri kaydedilemedi');
                       }
                     }}
                     style={{ flex: 2 }}

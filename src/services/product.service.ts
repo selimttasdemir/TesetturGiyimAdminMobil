@@ -65,7 +65,7 @@ class ProductService {
         sale_price: data.salePrice || 0,
         stock_quantity: data.stock || 0,
         min_stock_level: data.minStock || 5,
-        image_url: null,
+        image_url: data.imageUrl || null, // Artık images array'ini JSON string olarak saklayacağız
       };
       
       const response = await apiService.post<Product>('/products/', backendData);
