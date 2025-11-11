@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { DashboardScreen } from '../screens/dashboard/DashboardScreen';
 import { ReportsScreen } from '../screens/reports/ReportsScreen';
 import { CustomersScreen } from '../screens/customers/CustomersScreen';
+import { CategoriesScreen } from '../screens/categories/CategoriesScreen';
 import { InventoryScreen } from '../screens/inventory/InventoryScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { ProductNavigator } from './ProductNavigator';
@@ -74,6 +75,18 @@ export const MainNavigator = () => {
             tabBarLabel: 'Ürünler',
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="package-variant" size={size} color={color} />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name="Categories"
+          component={CategoriesScreen}
+          options={{
+            title: 'Kategoriler',
+            tabBarLabel: 'Kategori',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="tag-multiple" size={size} color={color} />
             ),
           }}
         />
@@ -246,6 +259,18 @@ const WebNavigatorWithSidebar = ({ sidebarWidth }: { sidebarWidth: number }) => 
               tabBarLabel: 'Ürünler',
               tabBarIcon: ({ color, size }) => (
                 <MaterialCommunityIcons name="package-variant" size={size} color={color} />
+              ),
+            }}
+          />
+
+          <Tab.Screen
+            name="Categories"
+            component={CategoriesScreen}
+            options={{
+              title: 'Kategoriler',
+              tabBarLabel: 'Kategoriler',
+              tabBarIcon: ({ color, size }) => (
+                <MaterialCommunityIcons name="tag-multiple" size={size} color={color} />
               ),
             }}
           />

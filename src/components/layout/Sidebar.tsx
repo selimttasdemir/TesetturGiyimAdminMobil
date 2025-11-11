@@ -21,6 +21,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Ana Panel', icon: 'view-dashboard', route: 'Dashboard' },
   { id: 'products', label: 'Ürünler', icon: 'hanger', route: 'Products' },
+  { id: 'categories', label: 'Kategoriler', icon: 'tag-multiple', route: 'Categories' },
   { id: 'sales', label: 'Satışlar', icon: 'cash-register', route: 'Sales' },
   { id: 'purchases', label: 'Tedarik', icon: 'package-variant', route: 'Purchases' },
   { id: 'suppliers', label: 'Tedarikçiler', icon: 'truck', route: 'Suppliers' },

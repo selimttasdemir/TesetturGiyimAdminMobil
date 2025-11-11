@@ -8,12 +8,15 @@ import {
   RefreshControl,
   Dimensions,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useProductStore } from '../../store/productStore';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
+import { Modal } from '../../components/common/Modal';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
 import { Product } from '../../types';
 
@@ -22,13 +25,32 @@ const isSmallDevice = width < 375;
 const isWeb = Platform.OS === 'web';
 
 export const ProductListScreen = ({ navigation }: any) => {
-  const { products, isLoading, fetchProducts } = useProductStore();
+  const { products, isLoading, fetchProducts, deleteProduct, updateProduct } = useProductStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Modal states
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  
+  // Edit form states
+  const [editForm, setEditForm] = useState({
+    name: '',
+    barcode: '',
+    purchasePrice: '',
+    salePrice: '',
+    stock: '',
+    minStock: '',
+    description: '',
+  });
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
+  // Sayfa her açıldığında listeyi yenile
+  useFocusEffect(
+    React.useCallback(() => {
+      loadProducts();
+    }, [])
+  );
 
   const loadProducts = async () => {
     await fetchProducts();
@@ -67,32 +89,154 @@ export const ProductListScreen = ({ navigation }: any) => {
     return product.stock;
   };
 
+  const handleProductPress = (product: Product) => {
+    setSelectedProduct(product);
+    setDetailModalVisible(true);
+  };
+
+  const handleEdit = () => {
+    if (!selectedProduct) return;
+    
+    setEditForm({
+      name: selectedProduct.name,
+      barcode: selectedProduct.barcode,
+      purchasePrice: selectedProduct.purchasePrice?.toString() || '',
+      salePrice: selectedProduct.salePrice?.toString() || '',
+      stock: selectedProduct.stock?.toString() || '',
+      minStock: selectedProduct.minStock?.toString() || '',
+      description: selectedProduct.description || '',
+    });
+    
+    setDetailModalVisible(false);
+    setEditModalVisible(true);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedProduct) return;
+    
+    const confirmed = window.confirm(
+      `${selectedProduct.name} ürünü silmek istediğinizden emin misiniz?`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      console.log('Deleting product:', selectedProduct.id);
+      await deleteProduct(String(selectedProduct.id));
+      console.log('Product deleted successfully');
+      setDetailModalVisible(false);
+      setSelectedProduct(null);
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      console.error('Error response:', error.response?.data);
+      alert('Ürün silinemedi: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedProduct) return;
+    
+    try {
+      await updateProduct(String(selectedProduct.id), {
+        name: editForm.name,
+        barcode: editForm.barcode,
+        purchasePrice: parseFloat(editForm.purchasePrice) || 0,
+        salePrice: parseFloat(editForm.salePrice) || 0,
+        stock: parseInt(editForm.stock) || 0,
+        minStock: parseInt(editForm.minStock) || 0,
+        description: editForm.description,
+      });
+      
+      setEditModalVisible(false);
+      setSelectedProduct(null);
+    } catch (error) {
+      console.error('Update error:', error);
+    }
+  };
+
+  const closeModals = () => {
+    setDetailModalVisible(false);
+    setEditModalVisible(false);
+    setSelectedProduct(null);
+  };
+
+  // Ürün etiketlerini belirle
+  const getProductBadges = (product: Product) => {
+    const badges = [];
+    
+    // Yeni ürün (son 30 gün)
+    if (product.createdAt) {
+      const createdDate = new Date(product.createdAt);
+      const daysDiff = (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysDiff <= 30) {
+        badges.push({ label: 'YENİ', color: COLORS.success });
+      }
+    }
+    
+    // İndirim (satış fiyatı alış fiyatından %40'tan fazla yüksekse normal, değilse indirimli)
+    if (product.purchasePrice && product.salePrice) {
+      const markup = ((product.salePrice - product.purchasePrice) / product.purchasePrice) * 100;
+      if (markup < 30) {
+        badges.push({ label: 'İNDİRİM', color: COLORS.error });
+      }
+    }
+    
+    // Düşük stok
+    if (product.stock <= product.minStock && product.stock > 0) {
+      badges.push({ label: 'AZ STOK', color: COLORS.warning });
+    }
+    
+    // Stokta yok
+    if (product.stock === 0) {
+      badges.push({ label: 'STOKTA YOK', color: COLORS.error });
+    }
+    
+    return badges;
+  };
+
   const renderProduct = ({ item }: { item: Product }) => {
     const totalStock = getTotalStock(item);
+    const badges = getProductBadges(item);
     
     return (
       <TouchableOpacity
-        onPress={() => navigation.navigate('ProductDetail', { productId: item.id })}
+        onPress={() => handleProductPress(item)}
         activeOpacity={0.7}
       >
         <Card>
           <View style={styles.productCard}>
             <View style={styles.productInfo}>
+              {/* Etiketler */}
+              {badges.length > 0 && (
+                <View style={styles.badgesContainer}>
+                  {badges.map((badge, index) => (
+                    <View 
+                      key={index} 
+                      style={[styles.badge, { backgroundColor: badge.color }]}
+                    >
+                      <Text style={styles.badgeText}>{badge.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              
               <Text style={[styles.productName, isSmallDevice && styles.productNameSmall]}>
                 {item.name}
               </Text>
               
               <View style={styles.productMeta}>
-                <View style={styles.categoryBadge}>
-                  <MaterialCommunityIcons 
-                    name="tag" 
-                    size={14} 
-                    color={COLORS.primary} 
-                  />
-                  <Text style={styles.categoryText}>
-                    {typeof item.category === 'string' ? item.category : item.category.name}
-                  </Text>
-                </View>
+                {item.category && (
+                  <View style={styles.categoryBadge}>
+                    <MaterialCommunityIcons 
+                      name="tag" 
+                      size={14} 
+                      color={COLORS.primary} 
+                    />
+                    <Text style={styles.categoryText}>
+                      {typeof item.category === 'string' ? item.category : item.category.name}
+                    </Text>
+                  </View>
+                )}
                 
                 {item.brand && (
                   <Text style={styles.brandText}>• {item.brand}</Text>
@@ -185,7 +329,7 @@ export const ProductListScreen = ({ navigation }: any) => {
       <FlatList
         data={products}
         renderItem={renderProduct}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl 
@@ -205,6 +349,192 @@ export const ProductListScreen = ({ navigation }: any) => {
           </View>
         }
       />
+
+      {/* Detail Modal */}
+      <Modal
+        visible={detailModalVisible}
+        onClose={closeModals}
+        title="Ürün Detayı"
+      >
+        {selectedProduct && (
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.modalActions}>
+              <Button
+                title="Düzenle"
+                onPress={handleEdit}
+                variant="outline"
+              />
+              <Button
+                title="Sil"
+                onPress={handleDelete}
+                variant="outline"
+                style={{ borderColor: COLORS.error }}
+                textStyle={{ color: COLORS.error }}
+              />
+            </View>
+            
+            <View style={styles.formRow}>
+              <View style={styles.formColumn}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Ürün Adı:</Text>
+                  <Text style={styles.detailValue}>{selectedProduct.name}</Text>
+                </View>
+              </View>
+              
+              <View style={styles.formColumn}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Barkod:</Text>
+                  <Text style={styles.detailValue}>{selectedProduct.barcode}</Text>
+                </View>
+              </View>
+            </View>
+            
+            <View style={styles.formRow}>
+              <View style={styles.formColumn}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Alış Fiyatı:</Text>
+                  <Text style={styles.detailValue}>
+                    ₺{selectedProduct.purchasePrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              </View>
+              
+              <View style={styles.formColumn}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Satış Fiyatı:</Text>
+                  <Text style={[styles.detailValue, styles.priceHighlight]}>
+                    ₺{selectedProduct.salePrice?.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            
+            <View style={styles.formRow}>
+              <View style={styles.formColumn}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Stok:</Text>
+                  <Text style={[
+                    styles.detailValue,
+                    { color: getStockColor(selectedProduct.stock, selectedProduct.minStock) }
+                  ]}>
+                    {selectedProduct.stock} adet
+                  </Text>
+                </View>
+              </View>
+              
+              <View style={styles.formColumn}>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Minimum Stok:</Text>
+                  <Text style={styles.detailValue}>{selectedProduct.minStock} adet</Text>
+                </View>
+              </View>
+            </View>
+            
+            {selectedProduct.description && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Açıklama:</Text>
+                <Text style={styles.detailValue}>{selectedProduct.description}</Text>
+              </View>
+            )}
+          </ScrollView>
+        )}
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal
+        visible={editModalVisible}
+        onClose={closeModals}
+        title="Ürün Düzenle"
+      >
+        <ScrollView style={styles.modalContent}>
+          <View style={styles.formRow}>
+            <View style={styles.formColumn}>
+              <Input
+                label="Ürün Adı *"
+                value={editForm.name}
+                onChangeText={(value) => setEditForm({ ...editForm, name: value })}
+                placeholder="Ürün adı"
+              />
+            </View>
+            
+            <View style={styles.formColumn}>
+              <Input
+                label="Barkod *"
+                value={editForm.barcode}
+                onChangeText={(value) => setEditForm({ ...editForm, barcode: value })}
+                placeholder="Barkod"
+              />
+            </View>
+          </View>
+          
+          <View style={styles.formRow}>
+            <View style={styles.formColumn}>
+              <Input
+                label="Alış Fiyatı *"
+                value={editForm.purchasePrice}
+                onChangeText={(value) => setEditForm({ ...editForm, purchasePrice: value })}
+                placeholder="0.00"
+                keyboardType="numeric"
+                leftIcon="currency-try"
+              />
+            </View>
+            
+            <View style={styles.formColumn}>
+              <Input
+                label="Satış Fiyatı *"
+                value={editForm.salePrice}
+                onChangeText={(value) => setEditForm({ ...editForm, salePrice: value })}
+                placeholder="0.00"
+                keyboardType="numeric"
+                leftIcon="currency-try"
+              />
+            </View>
+          </View>
+          
+          <View style={styles.formRow}>
+            <View style={styles.formColumn}>
+              <Input
+                label="Stok Miktarı *"
+                value={editForm.stock}
+                onChangeText={(value) => setEditForm({ ...editForm, stock: value })}
+                placeholder="0"
+                keyboardType="numeric"
+              />
+            </View>
+            
+            <View style={styles.formColumn}>
+              <Input
+                label="Minimum Stok *"
+                value={editForm.minStock}
+                onChangeText={(value) => setEditForm({ ...editForm, minStock: value })}
+                placeholder="0"
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+          
+          <Input
+            label="Açıklama"
+            value={editForm.description}
+            onChangeText={(value) => setEditForm({ ...editForm, description: value })}
+            placeholder="Ürün açıklaması"
+            multiline
+            numberOfLines={3}
+          />
+          
+          <View style={styles.modalActions}>
+            <Button
+              title="İptal"
+              onPress={closeModals}
+              variant="outline"
+            />
+            <Button
+              title="Kaydet"
+              onPress={handleSaveEdit}
+            />
+          </View>
+        </ScrollView>
+      </Modal>
     </View>
   );
 };
@@ -367,5 +697,59 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.lg,
     color: COLORS.textSecondary,
     marginVertical: SPACING.lg,
+  },
+  badgesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  badgeText: {
+    color: COLORS.surface,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  modalContent: {
+    padding: SPACING.sm,
+  },
+  formRow: {
+    flexDirection: isWeb ? 'row' : 'column',
+    gap: SPACING.md,
+    marginBottom: 0,
+  },
+  formColumn: {
+    flex: 1,
+  },
+  detailRow: {
+    marginBottom: SPACING.md,
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  detailLabel: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  priceHighlight: {
+    fontSize: FONT_SIZES.lg,
+    color: COLORS.primary,
+    fontWeight: '700',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginTop: SPACING.lg,
   },
 });

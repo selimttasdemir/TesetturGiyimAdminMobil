@@ -9,7 +9,6 @@ interface SupplierStore {
   error: string | null;
 
   fetchSuppliers: (filters?: any) => Promise<void>;
-  getSupplier: (id: string) => Promise<void>;
   createSupplier: (data: Partial<Supplier>) => Promise<boolean>;
   updateSupplier: (id: string, data: Partial<Supplier>) => Promise<boolean>;
   deleteSupplier: (id: string) => Promise<boolean>;
@@ -28,16 +27,6 @@ export const useSupplierStore = create<SupplierStore>((set) => ({
     try {
       const response = await supplierService.getSuppliers(filters);
       set({ suppliers: response.items, isLoading: false });
-    } catch (error: any) {
-      set({ error: error.message, isLoading: false });
-    }
-  },
-
-  getSupplier: async (id: string) => {
-    set({ isLoading: true, error: null });
-    try {
-      const supplier = await supplierService.getSupplier(id);
-      set({ currentSupplier: supplier, isLoading: false });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
     }

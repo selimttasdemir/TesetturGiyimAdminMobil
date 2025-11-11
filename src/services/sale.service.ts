@@ -26,24 +26,28 @@ interface SaleFilters {
 class SaleService {
   async getSales(filters?: SaleFilters): Promise<PaginatedResponse<Sale>> {
     try {
-      return await apiService.get<PaginatedResponse<Sale>>('/sales/', filters);
-    } catch (error) {
-      // Mock data for development - Backend not ready yet
-      console.log('Backend not available, returning mock data');
-      return {
-        items: [],
-        total: 0,
-        page: 1,
-        pageSize: filters?.pageSize || 10,
-        totalPages: 0,
-      };
+      console.log('Fetching sales with filters:', filters);
+      const result = await apiService.get<PaginatedResponse<Sale>>('/sales/', filters);
+      console.log('Sales API response:', result);
+      return result;
+    } catch (error: any) {
+      console.error('Error fetching sales:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      // Hata olursa fırlat, mock data döndürme
+      throw error;
     }
   }
 
   async getSale(id: string): Promise<Sale> {
     try {
-      return await apiService.get<Sale>(`/sales/${id}/`);
-    } catch (error) {
+      console.log('Fetching sale detail for ID:', id);
+      const result = await apiService.get<Sale>(`/sales/${id}`);
+      console.log('Sale detail response:', result);
+      return result;
+    } catch (error: any) {
+      console.error('Error fetching sale detail:', error);
+      console.error('Error response:', error.response?.data);
       throw new Error('Sale not found');
     }
   }

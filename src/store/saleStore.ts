@@ -30,7 +30,7 @@ interface SaleState {
   // Sale actions
   fetchSales: (filters?: any) => Promise<void>;
   fetchSale: (id: string) => Promise<void>;
-  createSale: (paymentMethod: string, customerId?: string) => Promise<void>;
+  createSale: (paymentMethod: string, customerId?: string, paidAmount?: number) => Promise<any>;
   clearError: () => void;
 }
 
@@ -134,8 +134,11 @@ export const useSaleStore = create<SaleState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await saleService.getSales(filters);
+      console.log('Store received sales:', response);
+      // Backend direkt array döndürüyor, PaginatedResponse değil
+      const salesArray = Array.isArray(response) ? response : response.items || [];
       set({
-        sales: response.items,
+        sales: salesArray,
         isLoading: false,
       });
     } catch (error: any) {
@@ -159,29 +162,36 @@ export const useSaleStore = create<SaleState>((set, get) => ({
     }
   },
 
-  createSale: async (paymentMethod: string, customerId?: string) => {
+  createSale: async (paymentMethod: string, customerId?: string, paidAmount?: number) => {
     set({ isLoading: true, error: null });
     try {
       const cart = get().cart;
       
       const saleData = {
         items: cart.map((item) => ({
-          productId: item.product.id,
+          product_id: parseInt(item.product.id), // Backend integer bekliyor
           quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: item.discount,
+          unit_price: item.unitPrice,
+          discount: item.discount || 0,
         })),
-        paymentMethod,
-        customerId,
+        payment_method: paymentMethod,
+        customer_id: customerId ? parseInt(customerId) : undefined,
+        paid_amount: paidAmount,
+        discount: 0,
+        tax: get().getCartTax(),
+        notes: '',
       };
 
-      await saleService.createSale(saleData);
+      console.log('Sending sale data:', saleData); // Debug için
+      const response = await saleService.createSale(saleData as any);
       
       // Clear cart after successful sale
       set({ cart: [], isLoading: false });
+      return response;
     } catch (error: any) {
+      console.error('Sale creation error:', error.response?.data || error);
       set({
-        error: error.response?.data?.message || 'Satış oluşturulamadı',
+        error: error.response?.data?.detail || error.response?.data?.message || 'Satış oluşturulamadı',
         isLoading: false,
       });
       throw error;

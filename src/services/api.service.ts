@@ -68,7 +68,8 @@ class ApiService {
 
   async delete<T>(url: string): Promise<T> {
     const response = await this.api.delete<T>(url);
-    return response.data;
+    // 204 No Content durumunda data olmaz
+    return response.status === 204 ? (null as any) : response.data;
   }
 
   // File upload

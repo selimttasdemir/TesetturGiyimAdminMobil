@@ -22,17 +22,20 @@ export enum UserRole {
 export interface Product {
   id: string;
   barcode: string;
+  sku?: string; // SKU (Stock Keeping Unit)
   name: string;
-  category: Category;
+  category?: Category;
+  categoryId?: string;
   description?: string;
   purchasePrice: number;
   salePrice: number;
   stock: number;
   minStock: number;
-  unit: ProductUnit;
+  unit?: ProductUnit;
   shelfLocation?: string;
   supplier?: Supplier;
   image?: string;
+  imageUrl?: string;
   images?: string[]; // Çoklu ürün görselleri
   isActive: boolean;
   
@@ -45,8 +48,8 @@ export interface Product {
   pattern?: string; // Desen (Düz, Çiçekli, Çizgili vb)
   careInstructions?: string; // Bakım talimatları
   
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Beden Tipleri
@@ -73,6 +76,11 @@ export enum Season {
 export interface Category {
   id: string;
   name: string;
+  description?: string;
+  created_at?: string;
+  createdAt?: string;
+  product_count?: number;
+  productCount?: number;
   icon?: string;
   color?: string;
 }
@@ -137,25 +145,51 @@ export enum PurchaseOrderStatus {
 export interface Sale {
   id: string;
   saleNumber: string;
+  sale_number?: string; // Backend snake_case version
   items: SaleItem[];
   subtotal: number;
+  totalAmount: number; // Backend'den gelen totalAmount
+  total_amount?: number; // Backend snake_case version
   tax: number;
   discount: number;
   total: number;
-  paymentMethod: PaymentMethod;
+  finalAmount: number;
+  final_amount?: number; // Backend snake_case version
+  paymentMethod: PaymentMethod | string;
+  payment_method?: string; // Backend snake_case version
+  paidAmount: number;
+  paid_amount?: number; // Backend snake_case version
+  remainingAmount: number;
+  remaining_amount?: number; // Backend snake_case version
   customer?: Customer;
+  customerId?: string;
+  customer_id?: number; // Backend snake_case version
   cashier: User;
+  userId?: string;
+  user_id?: number; // Backend snake_case version
   isPaid: boolean;
+  status: string;
+  notes?: string;
   createdAt: string;
+  created_at?: string; // Backend snake_case version
 }
 
 export interface SaleItem {
-  id: string;
-  product: Product;
+  id?: number;
+  saleId?: number;
+  productId: number;
+  product_id?: number; // Backend snake_case version
+  product?: {
+    id: number;
+    name: string;
+    sku: string;
+    barcode?: string;
+  };
   quantity: number;
   unitPrice: number;
+  unit_price?: number; // Backend snake_case version
   discount: number;
-  total: number;
+  subtotal: number;
 }
 
 export enum PaymentMethod {

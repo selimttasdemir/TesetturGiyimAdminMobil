@@ -104,31 +104,26 @@ export const SupplierListScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleDelete = () => {
-    if (!selectedSupplier) return;
+  const handleDelete = async () => {
+    if (!selectedSupplier || !selectedSupplier.id) {
+      return;
+    }
 
-    Alert.alert(
-      'Tedarikçiyi Sil',
-      `${selectedSupplier.name} tedarikçisini silmek istediğinizden emin misiniz?`,
-      [
-        { text: 'İptal', style: 'cancel' },
-        {
-          text: 'Sil',
-          style: 'destructive',
-          onPress: async () => {
-            const success = await deleteSupplier(selectedSupplier.id);
-            if (success) {
-              setDetailModalVisible(false);
-              setSelectedSupplier(null);
-              await fetchSuppliers();
-              Alert.alert('Başarılı', 'Tedarikçi silindi');
-            } else {
-              Alert.alert('Hata', 'Tedarikçi silinemedi');
-            }
-          },
-        },
-      ]
+    const confirmed = window.confirm(
+      `${selectedSupplier.name} tedarikçisini silmek istediğinizden emin misiniz?`
     );
+    
+    if (!confirmed) return;
+
+    const success = await deleteSupplier(selectedSupplier.id);
+    if (success) {
+      setDetailModalVisible(false);
+      setSelectedSupplier(null);
+      await fetchSuppliers();
+      Alert.alert('Başarılı', 'Tedarikçi silindi');
+    } else {
+      Alert.alert('Hata', 'Tedarikçi silinemedi');
+    }
   };
 
   const renderSupplier = ({ item }: { item: Supplier }) => (
@@ -280,11 +275,15 @@ export const SupplierListScreen = ({ navigation }: any) => {
               )}
 
               <View style={styles.modalActions}>
-                <TouchableOpacity style={styles.editBtn} onPress={openEditModal}>
+                <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal()}>
                   <MaterialCommunityIcons name="pencil" size={20} color={COLORS.surface} />
                   <Text style={styles.editBtnText}>Düzenle</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
+                <TouchableOpacity 
+                  style={styles.deleteBtn} 
+                  onPress={() => handleDelete()}
+                  activeOpacity={0.7}
+                >
                   <MaterialCommunityIcons name="delete" size={20} color={COLORS.surface} />
                   <Text style={styles.deleteBtnText}>Sil</Text>
                 </TouchableOpacity>

@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { usePurchaseStore } from '../../store/purchaseStore';
+import { useAuthStore } from '../../store/authStore';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
@@ -16,11 +18,16 @@ import { PurchaseOrder } from '../../types';
 
 export const PurchaseListScreen = ({ navigation }: any) => {
   const { purchases, fetchPurchases, isLoading } = usePurchaseStore();
+  const { token } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadPurchases();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      if (token) {
+        loadPurchases();
+      }
+    }, [token])
+  );
 
   const loadPurchases = async () => {
     await fetchPurchases();

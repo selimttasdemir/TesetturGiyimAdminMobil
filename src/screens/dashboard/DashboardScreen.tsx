@@ -29,6 +29,10 @@ export const DashboardScreen = ({ navigation }: any) => {
   const [stats, setStats] = React.useState({
     todaySales: 0,
     todayTransactions: 0,
+    monthlySales: 0,
+    monthlyTransactions: 0,
+    totalSales: 0,
+    totalTransactions: 0,
     lowStockItems: 0,
     totalProducts: 0,
   });
@@ -63,6 +67,10 @@ export const DashboardScreen = ({ navigation }: any) => {
         setStats({
           todaySales: data.today_sales || 0,
           todayTransactions: data.today_transactions || 0,
+          monthlySales: data.monthly_sales || 0,
+          monthlyTransactions: data.monthly_transactions || 0,
+          totalSales: data.total_sales || 0,
+          totalTransactions: data.total_transactions || 0,
           lowStockItems: data.low_stock_items || 0,
           totalProducts: data.total_products || 0,
         });
@@ -113,10 +121,10 @@ export const DashboardScreen = ({ navigation }: any) => {
     },
   ];
 
-  // Responsive card width
+  // Responsive card width - 6 kart için
   const cardWidth = isWeb 
-    ? Math.min((width - SPACING.md * 3) / 4, 150)
-    : (width - SPACING.md * 3) / 2;
+    ? Math.min((width - SPACING.md * 4) / 3, 200) // Web: 3 sütun
+    : (width - SPACING.md * 3) / 2; // Mobil: 2 sütun
 
   return (
     <ScrollView
@@ -149,7 +157,7 @@ export const DashboardScreen = ({ navigation }: any) => {
             color={COLORS.surface} 
           />
           <Text style={[styles.statValue, isSmallDevice && styles.statValueSmall]}>
-            ₺{stats.todaySales.toLocaleString()}
+            ₺{stats.todaySales.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}
           </Text>
           <Text style={[styles.statLabel, isSmallDevice && styles.statLabelSmall]}>
             Bugünkü Satış
@@ -157,6 +165,34 @@ export const DashboardScreen = ({ navigation }: any) => {
         </View>
 
         <View style={[styles.statCard, { width: cardWidth }, styles.statSuccess]}>
+          <MaterialCommunityIcons 
+            name="calendar-month" 
+            size={isSmallDevice ? 24 : 32} 
+            color={COLORS.surface} 
+          />
+          <Text style={[styles.statValue, isSmallDevice && styles.statValueSmall]}>
+            ₺{stats.monthlySales.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}
+          </Text>
+          <Text style={[styles.statLabel, isSmallDevice && styles.statLabelSmall]}>
+            Aylık Satış
+          </Text>
+        </View>
+
+        <View style={[styles.statCard, { width: cardWidth }, styles.statInfo]}>
+          <MaterialCommunityIcons 
+            name="chart-line" 
+            size={isSmallDevice ? 24 : 32} 
+            color={COLORS.surface} 
+          />
+          <Text style={[styles.statValue, isSmallDevice && styles.statValueSmall]}>
+            ₺{stats.totalSales.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}
+          </Text>
+          <Text style={[styles.statLabel, isSmallDevice && styles.statLabelSmall]}>
+            Toplam Satış
+          </Text>
+        </View>
+
+        <View style={[styles.statCard, { width: cardWidth }, styles.statSecondary]}>
           <MaterialCommunityIcons 
             name="receipt" 
             size={isSmallDevice ? 24 : 32} 
@@ -166,7 +202,7 @@ export const DashboardScreen = ({ navigation }: any) => {
             {stats.todayTransactions}
           </Text>
           <Text style={[styles.statLabel, isSmallDevice && styles.statLabelSmall]}>
-            İşlem
+            Bugün İşlem
           </Text>
         </View>
 
@@ -184,7 +220,7 @@ export const DashboardScreen = ({ navigation }: any) => {
           </Text>
         </View>
 
-        <View style={[styles.statCard, { width: cardWidth }, styles.statInfo]}>
+        <View style={[styles.statCard, { width: cardWidth }, styles.statDark]}>
           <MaterialCommunityIcons 
             name="hanger" 
             size={isSmallDevice ? 24 : 32} 
@@ -194,7 +230,7 @@ export const DashboardScreen = ({ navigation }: any) => {
             {stats.totalProducts}
           </Text>
           <Text style={[styles.statLabel, isSmallDevice && styles.statLabelSmall]}>
-            Ürün
+            Toplam Ürün
           </Text>
         </View>
       </View>
@@ -350,6 +386,12 @@ const styles = StyleSheet.create({
   },
   statInfo: {
     backgroundColor: COLORS.secondary,
+  },
+  statSecondary: {
+    backgroundColor: '#6366f1',
+  },
+  statDark: {
+    backgroundColor: '#475569',
   },
   statValue: {
     fontSize: isSmallDevice ? FONT_SIZES.xl : FONT_SIZES.xxl,

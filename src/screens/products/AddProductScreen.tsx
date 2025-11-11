@@ -165,12 +165,9 @@ export const AddProductScreen = ({ navigation, route }: any) => {
       minStock: minStockNum,
     };
 
-    console.log('Submitting product:', productData);
-
     const success = await createProduct(productData);
     
     if (success) {
-      // Formu temizle
       setBarcode('');
       setName('');
       setCategory('');

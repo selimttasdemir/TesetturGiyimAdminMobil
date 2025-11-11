@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Product } from '../types';
-import productService from '../services/product.service';
+import { productService } from '../services/product.service';
 
 interface ProductState {
   products: Product[];
@@ -38,6 +38,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
     
     try {
       const response = await productService.getProducts(filters);
+      
       set({ 
         products: response.items, 
         isLoading: false,
@@ -46,7 +47,6 @@ export const useProductStore = create<ProductState>((set, get) => ({
         totalPages: response.totalPages,
       });
     } catch (error: any) {
-      console.error('Fetch products error:', error);
       set({ 
         error: error.response?.data?.detail || 'Ürünler yüklenirken hata oluştu',
         isLoading: false 
@@ -124,15 +124,24 @@ export const useProductStore = create<ProductState>((set, get) => ({
   deleteProduct: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
-      await productService.deleteProduct(id);
+      const result = await productService.deleteProduct(id);
+      
+      if (!result.success) {
+        set({
+          error: result.message || 'Ürün silinemedi',
+          isLoading: false,
+        });
+        throw new Error(result.message);
+      }
+      
       // Remove from list
       set((state) => ({
-        products: state.products.filter((p) => p.id !== id),
+        products: state.products.filter((p) => String(p.id) !== String(id)),
         isLoading: false,
       }));
     } catch (error: any) {
       set({
-        error: error.response?.data?.message || 'Ürün silinemedi',
+        error: error.response?.data?.detail || error.message || 'Ürün silinemedi',
         isLoading: false,
       });
       throw error;

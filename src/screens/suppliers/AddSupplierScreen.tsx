@@ -28,8 +28,6 @@ export const AddSupplierScreen = ({ navigation }: any) => {
       return;
     }
 
-    console.log('Submitting supplier data...');
-
     const supplierData = {
       name,
       contact_person: contactPerson || undefined,
@@ -39,16 +37,11 @@ export const AddSupplierScreen = ({ navigation }: any) => {
       tax_number: taxNumber || undefined,
     };
 
-    console.log('Supplier data to send:', supplierData);
-
     const success = await createSupplier(supplierData);
-    console.log('Create supplier result:', success);
     
     if (success) {
-      // Listeyi yenile
       await fetchSuppliers();
       
-      // Formu temizle
       setName('');
       setContactPerson('');
       setPhone('');

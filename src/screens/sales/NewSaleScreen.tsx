@@ -13,12 +13,13 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useProductStore } from '../../store/productStore';
 import { useSaleStore } from '../../store/saleStore';
+import customerService from '../../services/customer.service';
 import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
-import { Product } from '../../types';
+import { Product, Customer } from '../../types';
 
 const { width, height } = Dimensions.get('window');
 const isSmallDevice = width < 375;
@@ -41,12 +42,34 @@ export const NewSaleScreen = ({ navigation }: any) => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showCart, setShowCart] = useState(!isMobile); // Mobilde başlangıçta kapalı
+  const [showCart, setShowCart] = useState(!isMobile);
   const [selectedPayment, setSelectedPayment] = useState('nakit');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [paidAmount, setPaidAmount] = useState('');
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    name: '',
+    phone: '',
+    tc: '',
+    address: '',
+  });
 
   useEffect(() => {
     fetchProducts();
+    loadCustomers();
   }, []);
+
+  const loadCustomers = async () => {
+    try {
+      const response = await customerService.getCustomers();
+      console.log('Loaded customers:', response.items);
+      setCustomers(response.items || []);
+    } catch (error) {
+      console.error('Error loading customers:', error);
+    }
+  };
 
   const handleAddProduct = (product: Product) => {
     addToCart(product, 1);
@@ -67,14 +90,14 @@ export const NewSaleScreen = ({ navigation }: any) => {
       Alert.alert('Hata', 'Sepetiniz boş');
       return;
     }
+
     setShowPaymentModal(true);
   };
 
   const handleScanBarcode = () => {
     navigation.navigate('BarcodeScanner', {
       onBarcodeScanned: (barcode: string) => {
-        // Barkoda göre ürün bul
-        const product = products.find((p) => p.barcode === barcode);
+        const product = products?.find((p) => p.barcode === barcode);
         if (product) {
           handleAddProduct(product);
           Alert.alert('Başarılı', `${product.name} sepete eklendi`);
@@ -86,14 +109,53 @@ export const NewSaleScreen = ({ navigation }: any) => {
   };
 
   const handlePayment = async () => {
+    // Müşteri kontrolü
+    if (!selectedCustomer) {
+      Alert.alert('Hata', 'Lütfen müşteri bilgilerini girin veya seçin');
+      return;
+    }
+
     try {
-      await createSale(selectedPayment);
+      // Veresiye ise ödenen tutarı hesapla
+      const paid = (selectedPayment === 'veresiye' && paidAmount) 
+        ? parseFloat(paidAmount) 
+        : undefined;
+
+      console.log('Creating sale with:', {
+        paymentMethod: selectedPayment,
+        customerId: selectedCustomer?.id,
+        paidAmount: paid,
+      });
+
+      await createSale(selectedPayment, selectedCustomer?.id, paid);
       setShowPaymentModal(false);
-      Alert.alert('Başarılı', 'Satış tamamlandı', [
-        { text: 'Tamam', onPress: () => navigation.goBack() },
+
+      // Başarılı mesajı
+      const message = selectedPayment === 'veresiye'
+        ? `Satış tamamlandı. Kalan borç: ₺${(getCartTotal() - (parseFloat(paidAmount) || 0)).toFixed(2)}`
+        : 'Satış başarıyla tamamlandı';
+
+      Alert.alert('Başarılı', message, [
+        {
+          text: 'Tamam',
+          onPress: () => {
+            // Temizle
+            setSelectedCustomer(null);
+            setSelectedPayment('nakit');
+            setPaidAmount('');
+            setShowNewCustomerForm(false);
+            setNewCustomer({ name: '', phone: '', tc: '', address: '' });
+            navigation.goBack();
+          }
+        },
       ]);
-    } catch (error) {
-      Alert.alert('Hata', 'Satış oluşturulamadı');
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.detail 
+        ? JSON.stringify(error.response.data.detail, null, 2)
+        : error.message || 'Satış oluşturulamadı';
+      Alert.alert('Hata', errorMessage);
     }
   };
 
@@ -118,10 +180,10 @@ export const NewSaleScreen = ({ navigation }: any) => {
         </Text>
         <Text style={styles.productCardStock}>Stok: {item.stock}</Text>
       </View>
-      <MaterialCommunityIcons 
-        name="plus-circle" 
-        size={isSmallDevice ? 28 : 32} 
-        color={COLORS.primary} 
+      <MaterialCommunityIcons
+        name="plus-circle"
+        size={isSmallDevice ? 28 : 32}
+        color={COLORS.primary}
       />
     </TouchableOpacity>
   );
@@ -137,44 +199,44 @@ export const NewSaleScreen = ({ navigation }: any) => {
           ₺{item.unitPrice.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
         </Text>
       </View>
-      
+
       <View style={styles.quantityControl}>
         <TouchableOpacity
           onPress={() => handleQuantityChange(item.product.id, -1)}
           style={styles.quantityButton}
         >
-          <MaterialCommunityIcons 
-            name="minus-circle" 
-            size={isSmallDevice ? 24 : 28} 
-            color={COLORS.error} 
+          <MaterialCommunityIcons
+            name="minus-circle"
+            size={isSmallDevice ? 24 : 28}
+            color={COLORS.error}
           />
         </TouchableOpacity>
-        
+
         <Text style={[styles.quantityText, isSmallDevice && styles.smallText]}>
           {item.quantity}
         </Text>
-        
+
         <TouchableOpacity
           onPress={() => handleQuantityChange(item.product.id, 1)}
           style={styles.quantityButton}
         >
-          <MaterialCommunityIcons 
-            name="plus-circle" 
-            size={isSmallDevice ? 24 : 28} 
-            color={COLORS.success} 
+          <MaterialCommunityIcons
+            name="plus-circle"
+            size={isSmallDevice ? 24 : 28}
+            color={COLORS.success}
           />
         </TouchableOpacity>
       </View>
-      
+
       <View style={styles.cartItemRight}>
         <Text style={[styles.cartItemTotal, isSmallDevice && styles.smallText]}>
           ₺{item.total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
         </Text>
         <TouchableOpacity onPress={() => removeFromCart(item.product.id)}>
-          <MaterialCommunityIcons 
-            name="trash-can-outline" 
-            size={isSmallDevice ? 18 : 20} 
-            color={COLORS.error} 
+          <MaterialCommunityIcons
+            name="trash-can-outline"
+            size={isSmallDevice ? 18 : 20}
+            color={COLORS.error}
           />
         </TouchableOpacity>
       </View>
@@ -191,24 +253,24 @@ export const NewSaleScreen = ({ navigation }: any) => {
             style={[styles.tabButton, !showCart && styles.tabButtonActive]}
             onPress={() => setShowCart(false)}
           >
-            <MaterialCommunityIcons 
-              name="hanger" 
-              size={20} 
-              color={!showCart ? COLORS.surface : COLORS.textSecondary} 
+            <MaterialCommunityIcons
+              name="hanger"
+              size={20}
+              color={!showCart ? COLORS.surface : COLORS.textSecondary}
             />
             <Text style={[styles.tabText, !showCart && styles.tabTextActive]}>
               Ürünler
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[styles.tabButton, showCart && styles.tabButtonActive]}
             onPress={() => setShowCart(true)}
           >
-            <MaterialCommunityIcons 
-              name="cart" 
-              size={20} 
-              color={showCart ? COLORS.surface : COLORS.textSecondary} 
+            <MaterialCommunityIcons
+              name="cart"
+              size={20}
+              color={showCart ? COLORS.surface : COLORS.textSecondary}
             />
             <Text style={[styles.tabText, showCart && styles.tabTextActive]}>
               Sepet ({cart.length})
@@ -235,7 +297,7 @@ export const NewSaleScreen = ({ navigation }: any) => {
                 <MaterialCommunityIcons name="barcode-scan" size={24} color={COLORS.surface} />
               </TouchableOpacity>
             </View>
-            
+
             <FlatList
               data={filteredProducts}
               renderItem={renderProductCard}
@@ -266,7 +328,44 @@ export const NewSaleScreen = ({ navigation }: any) => {
                   keyExtractor={(item) => item.product.id}
                   contentContainerStyle={styles.cartList}
                 />
-                
+
+                {/* Müşteri Seçimi */}
+                <View style={styles.customerSection}>
+                  <Text style={styles.customerSectionLabel}>Müşteri Bilgileri</Text>
+                  <TouchableOpacity
+                    style={styles.customerSelectButton}
+                    onPress={() => setShowCustomerModal(true)}
+                  >
+                    <View style={styles.customerSelectContent}>
+                      <MaterialCommunityIcons
+                        name={selectedCustomer ? 'account-check' : 'account-plus'}
+                        size={24}
+                        color={selectedCustomer ? COLORS.success : COLORS.primary}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.customerSelectName}>
+                          {selectedCustomer ? selectedCustomer.name : 'Müşteri Seç'}
+                        </Text>
+                        {selectedCustomer && (
+                          <Text style={styles.customerSelectPhone}>
+                            {selectedCustomer.phone}
+                            {selectedCustomer.balance > 0 && (
+                              <Text style={{ color: COLORS.error }}>
+                                {' '}• Borç: ₺{selectedCustomer.balance.toFixed(2)}
+                              </Text>
+                            )}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={24}
+                      color={COLORS.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+
                 {/* Toplam Özeti */}
                 <View style={styles.summary}>
                   <View style={styles.summaryRow}>
@@ -287,7 +386,7 @@ export const NewSaleScreen = ({ navigation }: any) => {
                       ₺{getCartTotal().toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                     </Text>
                   </View>
-                  
+
                   <View style={styles.actions}>
                     <Button
                       title="Temizle"
@@ -312,49 +411,262 @@ export const NewSaleScreen = ({ navigation }: any) => {
         <Modal
           visible={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
-          title="Ödeme Yöntemi Seçin"
+          title="Ödeme Detayları"
+          size="large"
         >
-          <View style={styles.paymentOptions}>
-            {['nakit', 'kart', 'veresiye'].map((method) => (
-              <TouchableOpacity
-                key={method}
-                style={[
-                  styles.paymentOption,
-                  selectedPayment === method && styles.paymentOptionSelected,
-                ]}
-                onPress={() => setSelectedPayment(method)}
-              >
-                <MaterialCommunityIcons
-                  name={
-                    method === 'nakit'
-                      ? 'cash'
-                      : method === 'kart'
-                      ? 'credit-card'
-                      : 'calendar-clock'
-                  }
-                  size={32}
-                  color={selectedPayment === method ? COLORS.primary : COLORS.textSecondary}
+          <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+            {/* Müşteri Seçimi */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Müşteri Bilgileri (Zorunlu)</Text>
+              
+              {!showNewCustomerForm ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.customerSelect}
+                    onPress={() => setShowCustomerModal(true)}
+                  >
+                    <Text style={styles.customerSelectText}>
+                      {selectedCustomer ? selectedCustomer.name : 'Mevcut Müşteri Seç'}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name={selectedCustomer ? 'account-check' : 'account-search'}
+                      size={24}
+                      color={selectedCustomer ? COLORS.success : COLORS.textSecondary}
+                    />
+                  </TouchableOpacity>
+                  
+                  {selectedCustomer && (
+                    <View style={styles.customerInfo}>
+                      <Text style={styles.customerInfoText}>
+                        Tel: {selectedCustomer.phone}
+                      </Text>
+                      {selectedCustomer.balance > 0 && (
+                        <Text style={[styles.customerInfoText, { color: COLORS.error }]}>
+                          Mevcut Borç: ₺{selectedCustomer.balance.toFixed(2)}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+
+                  <TouchableOpacity
+                    style={styles.newCustomerButton}
+                    onPress={() => setShowNewCustomerForm(true)}
+                  >
+                    <MaterialCommunityIcons name="account-plus" size={20} color={COLORS.primary} />
+                    <Text style={styles.newCustomerButtonText}>Yeni Müşteri Ekle</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <View style={styles.newCustomerForm}>
+                  <Input
+                    label="Ad Soyad *"
+                    placeholder="Örn: Ayşe Yılmaz"
+                    value={newCustomer.name}
+                    onChangeText={(text) => setNewCustomer({ ...newCustomer, name: text })}
+                    leftIcon="account"
+                  />
+                  <Input
+                    label="Telefon *"
+                    placeholder="Örn: 0532 123 4567"
+                    value={newCustomer.phone}
+                    onChangeText={(text) => setNewCustomer({ ...newCustomer, phone: text })}
+                    keyboardType="phone-pad"
+                    leftIcon="phone"
+                  />
+                  <Input
+                    label="TC Kimlik No"
+                    placeholder="11 haneli TC No"
+                    value={newCustomer.tc}
+                    onChangeText={(text) => setNewCustomer({ ...newCustomer, tc: text })}
+                    keyboardType="numeric"
+                    maxLength={11}
+                    leftIcon="card-account-details"
+                  />
+                  <Input
+                    label="Adres"
+                    placeholder="Açık adres"
+                    value={newCustomer.address}
+                    onChangeText={(text) => setNewCustomer({ ...newCustomer, address: text })}
+                    multiline
+                    numberOfLines={3}
+                    leftIcon="map-marker"
+                  />
+                  
+                  <View style={styles.formActions}>
+                    <Button
+                      title="İptal"
+                      onPress={() => {
+                        setShowNewCustomerForm(false);
+                        setNewCustomer({ name: '', phone: '', tc: '', address: '' });
+                      }}
+                      variant="outline"
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      title="Kaydet ve Devam Et"
+                      onPress={async () => {
+                        if (!newCustomer.name || !newCustomer.phone) {
+                          Alert.alert('Hata', 'Ad Soyad ve Telefon alanları zorunludur');
+                          return;
+                        }
+                        try {
+                          const response = await customerService.createCustomer({
+                            name: newCustomer.name,
+                            phone: newCustomer.phone,
+                            email: '',
+                            address: newCustomer.address || '',
+                          });
+                          setSelectedCustomer((response.data || response) as Customer);
+                          setShowNewCustomerForm(false);
+                          setNewCustomer({ name: '', phone: '', tc: '', address: '' });
+                          await loadCustomers();
+                          Alert.alert('Başarılı', 'Müşteri kaydedildi');
+                        } catch (error) {
+                          Alert.alert('Hata', 'Müşteri kaydedilemedi');
+                        }
+                      }}
+                      style={{ flex: 2 }}
+                    />
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Ödeme Yöntemi */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Ödeme Yöntemi</Text>
+              <View style={styles.paymentOptions}>
+                {['nakit', 'kart', 'veresiye'].map((method) => (
+                  <TouchableOpacity
+                    key={method}
+                    style={[
+                      styles.paymentOption,
+                      selectedPayment === method && styles.paymentOptionSelected,
+                    ]}
+                    onPress={() => {
+                      if (method === 'veresiye' && !selectedCustomer) {
+                        setShowCustomerModal(true);
+                        Alert.alert('Bilgi', 'Lütfen bir müşteri seçin');
+                      } else {
+                        setSelectedPayment(method);
+                      }
+                    }}
+                  >
+                    <MaterialCommunityIcons
+                      name={
+                        method === 'nakit'
+                          ? 'cash'
+                          : method === 'kart'
+                            ? 'credit-card'
+                            : 'calendar-clock'
+                      }
+                      size={32}
+                      color={selectedPayment === method ? COLORS.primary : COLORS.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.paymentText,
+                        selectedPayment === method && styles.paymentTextSelected,
+                      ]}
+                    >
+                      {method === 'nakit'
+                        ? 'Nakit'
+                        : method === 'kart'
+                          ? 'Kart'
+                          : 'Veresiye'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Veresiye için ödenen tutar */}
+            {selectedPayment === 'veresiye' && (
+              <View style={styles.modalSection}>
+                <Text style={styles.modalLabel}>Peşinat (Opsiyonel)</Text>
+                <Input
+                  placeholder="0.00"
+                  value={paidAmount}
+                  onChangeText={setPaidAmount}
+                  keyboardType="numeric"
+                  leftIcon="currency-try"
                 />
-                <Text
-                  style={[
-                    styles.paymentText,
-                    selectedPayment === method && styles.paymentTextSelected,
-                  ]}
-                >
-                  {method === 'nakit'
-                    ? 'Nakit'
-                    : method === 'kart'
-                    ? 'Kart'
-                    : 'Veresiye'}
+                <Text style={styles.remainingText}>
+                  Kalan Borç: ₺{(getCartTotal() - (parseFloat(paidAmount) || 0)).toFixed(2)}
                 </Text>
+              </View>
+            )}
+
+            {/* Tutar Özeti */}
+            <View style={styles.modalSection}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Ara Toplam:</Text>
+                <Text style={styles.summaryValue}>
+                  ₺{getCartSubtotal().toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>KDV (%18):</Text>
+                <Text style={styles.summaryValue}>
+                  ₺{getCartTax().toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                </Text>
+              </View>
+              <View style={[styles.summaryRow, styles.summaryTotal]}>
+                <Text style={styles.totalLabel}>Toplam:</Text>
+                <Text style={styles.totalValue}>
+                  ₺{getCartTotal().toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                </Text>
+              </View>
+            </View>
+
+            <Button
+              title="Ödemeyi Tamamla"
+              onPress={handlePayment}
+              loading={isLoading}
+            />
+          </ScrollView>
+        </Modal>
+
+        {/* Müşteri Seçim Modal */}
+        <Modal
+          visible={showCustomerModal}
+          onClose={() => setShowCustomerModal(false)}
+          title="Müşteri Seç"
+        >
+          <FlatList
+            data={customers}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.customerItem}
+                onPress={() => {
+                  console.log('Selected customer:', item);
+                  setSelectedCustomer(item);
+                  setSelectedPayment('veresiye'); // Otomatik veresiye seç
+                  setShowCustomerModal(false);
+                }}
+              >
+                <View style={styles.customerItemContent}>
+                  <Text style={styles.customerName}>{item.name}</Text>
+                  <Text style={styles.customerPhone}>{item.phone}</Text>
+                  {item.balance > 0 && (
+                    <Text style={styles.customerBalance}>
+                      Borç: ₺{item.balance.toFixed(2)}
+                    </Text>
+                  )}
+                </View>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={24}
+                  color={COLORS.textSecondary}
+                />
               </TouchableOpacity>
-            ))}
-          </View>
-          
-          <Button
-            title="Ödemeyi Tamamla"
-            onPress={handlePayment}
-            loading={isLoading}
+            )}
+            ListEmptyComponent={
+              <View style={styles.emptyCustomers}>
+                <Text style={styles.emptyText}>Müşteri bulunamadı</Text>
+              </View>
+            }
           />
         </Modal>
       </View>
@@ -376,7 +688,7 @@ export const NewSaleScreen = ({ navigation }: any) => {
               containerStyle={styles.searchInput}
             />
           </View>
-          
+
           <FlatList
             data={filteredProducts}
             renderItem={renderProductCard}
@@ -390,7 +702,7 @@ export const NewSaleScreen = ({ navigation }: any) => {
         {/* Sağ: Sepet */}
         <View style={styles.cartSection}>
           <Text style={styles.sectionTitle}>Sepet ({cart.length})</Text>
-          
+
           {cart.length === 0 ? (
             <View style={styles.emptyCart}>
               <MaterialCommunityIcons name="cart-outline" size={64} color={COLORS.textSecondary} />
@@ -404,7 +716,7 @@ export const NewSaleScreen = ({ navigation }: any) => {
                 keyExtractor={(item) => item.product.id}
                 contentContainerStyle={styles.cartList}
               />
-              
+
               <View style={styles.summary}>
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Ara Toplam:</Text>
@@ -424,7 +736,7 @@ export const NewSaleScreen = ({ navigation }: any) => {
                     ₺{getCartTotal().toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                   </Text>
                 </View>
-                
+
                 <View style={styles.actions}>
                   <Button
                     title="Temizle"
@@ -449,50 +761,235 @@ export const NewSaleScreen = ({ navigation }: any) => {
       <Modal
         visible={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
-        title="Ödeme Yöntemi Seçin"
+        title="Ödeme Detayları"
+        size="large"
       >
-        <View style={styles.paymentOptions}>
-          {['nakit', 'kart', 'veresiye'].map((method) => (
-            <TouchableOpacity
-              key={method}
-              style={[
-                styles.paymentOption,
-                selectedPayment === method && styles.paymentOptionSelected,
-              ]}
-              onPress={() => setSelectedPayment(method)}
-            >
-              <MaterialCommunityIcons
-                name={
-                  method === 'nakit'
-                    ? 'cash'
-                    : method === 'kart'
-                    ? 'credit-card'
-                    : 'calendar-clock'
-                }
-                size={32}
-                color={selectedPayment === method ? COLORS.primary : COLORS.textSecondary}
+        <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+          {/* Müşteri Seçimi */}
+          <View style={styles.modalSection}>
+            <Text style={styles.modalLabel}>Müşteri Bilgileri (Zorunlu)</Text>
+            
+            {!showNewCustomerForm ? (
+              <>
+                <TouchableOpacity
+                  style={styles.customerSelect}
+                  onPress={() => setShowCustomerModal(true)}
+                >
+                  <Text style={styles.customerSelectText}>
+                    {selectedCustomer ? selectedCustomer.name : 'Mevcut Müşteri Seç'}
+                  </Text>
+                  <MaterialCommunityIcons
+                    name={selectedCustomer ? 'account-check' : 'account-search'}
+                    size={24}
+                    color={selectedCustomer ? COLORS.success : COLORS.textSecondary}
+                  />
+                </TouchableOpacity>
+                
+                {selectedCustomer && (
+                  <View style={styles.customerInfo}>
+                    <Text style={styles.customerInfoText}>
+                      Tel: {selectedCustomer.phone}
+                    </Text>
+                    {selectedCustomer.balance > 0 && (
+                      <Text style={[styles.customerInfoText, { color: COLORS.error }]}>
+                        Mevcut Borç: ₺{selectedCustomer.balance.toFixed(2)}
+                      </Text>
+                    )}
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={styles.newCustomerButton}
+                  onPress={() => setShowNewCustomerForm(true)}
+                >
+                  <MaterialCommunityIcons name="account-plus" size={20} color={COLORS.primary} />
+                  <Text style={styles.newCustomerButtonText}>Yeni Müşteri Ekle</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <View style={styles.newCustomerForm}>
+                <Input
+                  label="Ad Soyad *"
+                  placeholder="Örn: Ayşe Yılmaz"
+                  value={newCustomer.name}
+                  onChangeText={(text) => setNewCustomer({ ...newCustomer, name: text })}
+                  leftIcon="account"
+                />
+                <Input
+                  label="Telefon *"
+                  placeholder="Örn: 0532 123 4567"
+                  value={newCustomer.phone}
+                  onChangeText={(text) => setNewCustomer({ ...newCustomer, phone: text })}
+                  keyboardType="phone-pad"
+                  leftIcon="phone"
+                />
+                <Input
+                  label="TC Kimlik No"
+                  placeholder="11 haneli TC No"
+                  value={newCustomer.tc}
+                  onChangeText={(text) => setNewCustomer({ ...newCustomer, tc: text })}
+                  keyboardType="numeric"
+                  maxLength={11}
+                  leftIcon="card-account-details"
+                />
+                <Input
+                  label="Adres"
+                  placeholder="Açık adres"
+                  value={newCustomer.address}
+                  onChangeText={(text) => setNewCustomer({ ...newCustomer, address: text })}
+                  multiline
+                  numberOfLines={3}
+                  leftIcon="map-marker"
+                />
+                
+                <View style={styles.formActions}>
+                  <Button
+                    title="İptal"
+                    onPress={() => {
+                      setShowNewCustomerForm(false);
+                      setNewCustomer({ name: '', phone: '', tc: '', address: '' });
+                    }}
+                    variant="outline"
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    title="Kaydet ve Devam Et"
+                    onPress={async () => {
+                      console.log('1. Kaydet butonuna basıldı');
+                      console.log('2. Form verileri:', newCustomer);
+                      
+                      if (!newCustomer.name || !newCustomer.phone) {
+                        Alert.alert('Hata', 'Ad Soyad ve Telefon alanları zorunludur');
+                        return;
+                      }
+                      
+                      console.log('3. Validation geçti, API çağrısı yapılıyor...');
+                      
+                      try {
+                        const customerData: any = {
+                          name: newCustomer.name,
+                          phone: newCustomer.phone,
+                          address: newCustomer.address || '',
+                        };
+                        // Email boşsa gönderme (backend EmailStr validation hatası veriyor)
+                        // email: undefined olarak bırak, axios otomatik siler
+                        
+                        console.log('3.5. Gönderilecek veri:', customerData);
+                        
+                        const response = await customerService.createCustomer(customerData);
+                        
+                        console.log('4. API Response:', response);
+                        console.log('5. Response.data:', response.data);
+                        
+                        const customer = (response.data || response) as Customer;
+                        console.log('6. Extracted customer:', customer);
+                        
+                        setSelectedCustomer(customer);
+                        setShowNewCustomerForm(false);
+                        setNewCustomer({ name: '', phone: '', tc: '', address: '' });
+                        await loadCustomers();
+                        
+                        Alert.alert('Başarılı', 'Müşteri kaydedildi');
+                      } catch (error: any) {
+                        console.error('7. HATA:', error);
+                        console.error('8. Error response:', error.response?.data);
+                        console.error('9. Error message:', error.message);
+                        Alert.alert('Hata', error.response?.data?.detail || error.message || 'Müşteri kaydedilemedi');
+                      }
+                    }}
+                    style={{ flex: 2 }}
+                  />
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Ödeme Yöntemi */}
+          <View style={styles.modalSection}>
+            <Text style={styles.modalLabel}>Ödeme Yöntemi</Text>
+            <View style={styles.paymentOptions}>
+              {['nakit', 'kart', 'veresiye'].map((method) => (
+                <TouchableOpacity
+                  key={method}
+                  style={[
+                    styles.paymentOption,
+                    selectedPayment === method && styles.paymentOptionSelected,
+                  ]}
+                  onPress={() => setSelectedPayment(method)}
+                >
+                  <MaterialCommunityIcons
+                    name={
+                      method === 'nakit'
+                        ? 'cash'
+                        : method === 'kart'
+                          ? 'credit-card'
+                          : 'calendar-clock'
+                    }
+                    size={32}
+                    color={selectedPayment === method ? COLORS.primary : COLORS.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.paymentText,
+                      selectedPayment === method && styles.paymentTextSelected,
+                    ]}
+                  >
+                    {method === 'nakit'
+                      ? 'Nakit'
+                      : method === 'kart'
+                        ? 'Kart'
+                        : 'Veresiye'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Veresiye için ödenen tutar */}
+          {selectedPayment === 'veresiye' && (
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Peşinat (Opsiyonel)</Text>
+              <Input
+                placeholder="0.00"
+                value={paidAmount}
+                onChangeText={setPaidAmount}
+                keyboardType="numeric"
+                leftIcon="currency-try"
               />
-              <Text
-                style={[
-                  styles.paymentText,
-                  selectedPayment === method && styles.paymentTextSelected,
-                ]}
-              >
-                {method === 'nakit'
-                  ? 'Nakit'
-                  : method === 'kart'
-                  ? 'Kart'
-                  : 'Veresiye'}
+              <Text style={styles.remainingText}>
+                Kalan Borç: ₺{(getCartTotal() - (parseFloat(paidAmount) || 0)).toFixed(2)}
               </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        
-        <Button
-          title="Ödemeyi Tamamla"
-          onPress={handlePayment}
-          loading={isLoading}
-        />
+            </View>
+          )}
+
+          {/* Tutar Özeti */}
+          <View style={styles.modalSection}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Ara Toplam:</Text>
+              <Text style={styles.summaryValue}>
+                ₺{getCartSubtotal().toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>KDV (%18):</Text>
+              <Text style={styles.summaryValue}>
+                ₺{getCartTax().toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <View style={[styles.summaryRow, styles.summaryTotal]}>
+              <Text style={styles.totalLabel}>Toplam:</Text>
+              <Text style={styles.totalValue}>
+                ₺{getCartTotal().toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+          </View>
+
+          <Button
+            title="Ödemeyi Tamamla"
+            onPress={handlePayment}
+            loading={isLoading}
+          />
+        </ScrollView>
       </Modal>
     </View>
   );
@@ -503,7 +1000,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  
+
   // Mobil üst bar
   topBar: {
     flexDirection: 'row',
@@ -763,6 +1260,146 @@ const styles = StyleSheet.create({
   paymentTextSelected: {
     color: COLORS.primary,
     fontWeight: '700',
+  },
+
+  // Modal sections
+  modalSection: {
+    marginBottom: SPACING.lg,
+  },
+  modalLabel: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: SPACING.sm,
+  },
+  
+  // Customer selection
+  customerSelect: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  customerSelectText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.text,
+  },
+  // Sepet müşteri seçimi
+  customerSection: {
+    backgroundColor: COLORS.surface,
+    padding: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    marginBottom: SPACING.sm,
+  },
+  customerSectionLabel: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
+  },
+  customerSelectButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: SPACING.md,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  customerSelectContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: SPACING.sm,
+  },
+  customerSelectName: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  customerSelectPhone: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  customerInfo: {
+    marginTop: SPACING.sm,
+    padding: SPACING.sm,
+    backgroundColor: `${COLORS.primary}10`,
+    borderRadius: BORDER_RADIUS.sm,
+  },
+  customerInfoText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginVertical: 2,
+  },
+  customerItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  customerItemContent: {
+    flex: 1,
+  },
+  customerName: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  customerPhone: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginBottom: 2,
+  },
+  customerBalance: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.error,
+    fontWeight: '500',
+  },
+  emptyCustomers: {
+    padding: SPACING.xl,
+    alignItems: 'center',
+  },
+  newCustomerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.md,
+    marginTop: SPACING.sm,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderStyle: 'dashed',
+    gap: SPACING.xs,
+  },
+  newCustomerButtonText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+  newCustomerForm: {
+    gap: SPACING.md,
+  },
+  formActions: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    marginTop: SPACING.md,
+  },
+  remainingText: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.primary,
+    marginTop: SPACING.sm,
   },
 
   // Responsive
