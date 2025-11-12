@@ -12,6 +12,8 @@ const Stack = () => null;
 export const RootNavigator = () => {
   const { isAuthenticated, isLoading, loadUser } = useAuthStore();
 
+  console.log('RootNavigator render - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
+
   useEffect(() => {
     loadUser();
   }, []);

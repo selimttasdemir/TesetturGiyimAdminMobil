@@ -92,18 +92,23 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    console.log('AuthStore logout çağrıldı');
     try {
       await authService.logout();
+      console.log('AuthService logout başarılı');
     } catch (error) {
       console.log('Logout error:', error);
     } finally {
+      console.log('AsyncStorage temizleniyor...');
       await AsyncStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
       await AsyncStorage.removeItem(STORAGE_KEYS.USER_DATA);
+      console.log('State güncelleniyor...');
       set({
         user: null,
         token: null,
         isAuthenticated: false,
       });
+      console.log('Logout tamamlandı, isAuthenticated: false');
     }
   },
 

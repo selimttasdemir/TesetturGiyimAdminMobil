@@ -23,7 +23,7 @@ export const InventoryScreen = () => {
   
   // Responsive grid - 2 sütun maksimum (min 400px kart genişliği, 200px yükseklik)
   // Büyük min width sayesinde max 2 sütun olacak
-  const gridConfig = useResponsiveGrid(400, 200);
+  const gridConfig = useResponsiveGrid(400, 120);
 
   useEffect(() => {
     loadProducts();

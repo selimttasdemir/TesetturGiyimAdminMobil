@@ -26,8 +26,8 @@ export const SalesListScreen = ({ navigation }: any) => {
     const [filter, setFilter] = useState<string>('all');
     const [allSales, setAllSales] = useState<Sale[]>([]); // Tüm satışları sakla
     
-    // Responsive grid - 2 sütun için optimize (min 350px kart genişliği, 280px yükseklik)
-    const gridConfig = useResponsiveGrid(350, 280);
+    // Responsive grid - 2 sütun için optimize (min 350px kart genişliği, 200px yükseklik)
+    const gridConfig = useResponsiveGrid(350, 210);
 
     useEffect(() => {
         loadSales();

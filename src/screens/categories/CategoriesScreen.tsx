@@ -16,6 +16,7 @@ import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
 import { Input } from '../../components/common/Input';
+import { ConfirmModal, InfoModal } from '../../components/common';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
 import { Category } from '../../types';
 
@@ -27,6 +28,17 @@ export const CategoriesScreen = ({ navigation }: any) => {
     const [showModal, setShowModal] = useState(false);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [formData, setFormData] = useState({ name: '', description: '' });
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+    const [infoModal, setInfoModal] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+    }>({ visible: false, title: '', message: '' });
+
+    const showInfo = (title: string, message: string) => {
+        setInfoModal({ visible: true, title, message });
+    };
 
     useEffect(() => {
         loadCategories();
@@ -64,41 +76,44 @@ export const CategoriesScreen = ({ navigation }: any) => {
 
     const handleSubmit = async () => {
         if (!formData.name.trim()) {
-            showToast('error', 'Kategori adı gereklidir');
+            showInfo('Hata', 'Kategori adı gereklidir');
             return;
         }
 
         try {
             if (editingCategory) {
                 await updateCategory(editingCategory.id, formData);
-                showToast('success', 'Kategori güncellendi');
+                showInfo('Başarılı', 'Kategori güncellendi');
             } else {
                 await createCategory(formData);
-                showToast('success', 'Kategori oluşturuldu');
+                showInfo('Başarılı', 'Kategori oluşturuldu');
             }
             handleCloseModal();
             loadCategories();
         } catch (error: any) {
             const errorMessage = error.response?.data?.detail || 'İşlem başarısız';
-            showToast('error', errorMessage);
+            showInfo('Hata', errorMessage);
         }
     };
 
-    const handleDelete = async (category: Category) => {
-        // Web ve mobil için confirm
-        const confirmDelete = Platform.OS === 'web'
-            ? window.confirm(`"${category.name}" kategorisini silmek istediğinize emin misiniz?`)
-            : true; // Mobilde direkt sil, toast ile bildir
+    const handleDeleteClick = (category: Category) => {
+        setCategoryToDelete(category);
+        setShowDeleteConfirm(true);
+    };
 
-        if (!confirmDelete) return;
+    const handleDeleteConfirm = async () => {
+        if (!categoryToDelete) return;
 
+        setShowDeleteConfirm(false);
         try {
-            await deleteCategory(category.id);
-            showToast('success', 'Kategori silindi');
+            await deleteCategory(categoryToDelete.id);
+            showInfo('Başarılı', 'Kategori silindi');
             loadCategories();
         } catch (error: any) {
             const errorMessage = error.response?.data?.detail || 'Kategori silinemedi';
-            showToast('error', errorMessage);
+            showInfo('Hata', errorMessage);
+        } finally {
+            setCategoryToDelete(null);
         }
     };
 
@@ -144,7 +159,7 @@ export const CategoriesScreen = ({ navigation }: any) => {
                         style={styles.actionButton}
                         onPress={(e) => {
                             e.stopPropagation();
-                            handleDelete(item);
+                            handleDeleteClick(item);
                         }}
                     >
                         <MaterialCommunityIcons name="delete" size={18} color={COLORS.error} />
@@ -241,6 +256,31 @@ export const CategoriesScreen = ({ navigation }: any) => {
                     </View>
                 </View>
             </Modal>
+
+            {/* Delete Confirmation Modal */}
+            <ConfirmModal
+                visible={showDeleteConfirm}
+                title="Kategoriyi Sil"
+                message={`"${categoryToDelete?.name}" kategorisini silmek istediğinizden emin misiniz?`}
+                icon="delete"
+                iconColor={COLORS.error}
+                confirmText="Sil"
+                cancelText="İptal"
+                confirmButtonColor={COLORS.error}
+                onConfirm={handleDeleteConfirm}
+                onCancel={() => {
+                    setShowDeleteConfirm(false);
+                    setCategoryToDelete(null);
+                }}
+            />
+
+            {/* Info Modal */}
+            <InfoModal
+                visible={infoModal.visible}
+                title={infoModal.title}
+                message={infoModal.message}
+                onClose={() => setInfoModal({ visible: false, title: '', message: '' })}
+            />
         </View>
     );
 };

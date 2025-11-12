@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ScrollView,
-  Alert,
   Platform,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -17,6 +16,7 @@ import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
+import { ConfirmModal, InfoModal } from '../../components/common';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
 import { Supplier } from '../../types';
 import { useResponsiveGrid } from '../../hooks/useResponsiveGrid';
@@ -27,12 +27,18 @@ export const SupplierListScreen = ({ navigation }: any) => {
   const [refreshing, setRefreshing] = useState(false);
   
   // Responsive grid - 2 sütun için (min 350px kart genişliği, 240px yükseklik)
-  const gridConfig = useResponsiveGrid(350, 240);
+  const gridConfig = useResponsiveGrid(350, 100);
   
   // Modal states
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [infoModal, setInfoModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({ visible: false, title: '', message: '' });
   
   // Form states
   const [editForm, setEditForm] = useState({
@@ -43,6 +49,10 @@ export const SupplierListScreen = ({ navigation }: any) => {
     address: '',
     taxNumber: '',
   });
+
+  const showInfo = (title: string, message: string) => {
+    setInfoModal({ visible: true, title, message });
+  };
 
   // Sayfa her açıldığında listeyi yenile
   useFocusEffect(
@@ -103,31 +113,30 @@ export const SupplierListScreen = ({ navigation }: any) => {
       setEditModalVisible(false);
       setSelectedSupplier(null);
       await fetchSuppliers();
-      Alert.alert('Başarılı', 'Tedarikçi güncellendi');
+      showInfo('Başarılı', 'Tedarikçi güncellendi');
     } else {
-      Alert.alert('Hata', 'Tedarikçi güncellenemedi');
+      showInfo('Hata', 'Tedarikçi güncellenemedi');
     }
   };
 
-  const handleDelete = async () => {
+  const handleDeleteClick = () => {
+    setDetailModalVisible(false);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
     if (!selectedSupplier || !selectedSupplier.id) {
       return;
     }
 
-    const confirmed = window.confirm(
-      `${selectedSupplier.name} tedarikçisini silmek istediğinizden emin misiniz?`
-    );
-    
-    if (!confirmed) return;
-
+    setShowDeleteConfirm(false);
     const success = await deleteSupplier(selectedSupplier.id);
     if (success) {
-      setDetailModalVisible(false);
       setSelectedSupplier(null);
       await fetchSuppliers();
-      Alert.alert('Başarılı', 'Tedarikçi silindi');
+      showInfo('Başarılı', 'Tedarikçi silindi');
     } else {
-      Alert.alert('Hata', 'Tedarikçi silinemedi');
+      showInfo('Hata', 'Tedarikçi silinemedi');
     }
   };
 
@@ -292,7 +301,7 @@ export const SupplierListScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.deleteBtn} 
-                  onPress={() => handleDelete()}
+                  onPress={handleDeleteClick}
                   activeOpacity={0.7}
                 >
                   <MaterialCommunityIcons name="delete" size={20} color={COLORS.surface} />
@@ -380,6 +389,28 @@ export const SupplierListScreen = ({ navigation }: any) => {
           </View>
         </ScrollView>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        visible={showDeleteConfirm}
+        title="Tedarikçiyi Sil"
+        message={`${selectedSupplier?.name} tedarikçisini silmek istediğinizden emin misiniz?`}
+        icon="delete"
+        iconColor={COLORS.error}
+        confirmText="Sil"
+        cancelText="İptal"
+        confirmButtonColor={COLORS.error}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      {/* Info Modal */}
+      <InfoModal
+        visible={infoModal.visible}
+        title={infoModal.title}
+        message={infoModal.message}
+        onClose={() => setInfoModal({ visible: false, title: '', message: '' })}
+      />
     </View>
   );
 };

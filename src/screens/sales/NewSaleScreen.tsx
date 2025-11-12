@@ -48,6 +48,7 @@ export const NewSaleScreen = ({ navigation }: any) => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomer, setNewCustomer] = useState({
@@ -61,6 +62,14 @@ export const NewSaleScreen = ({ navigation }: any) => {
     fetchProducts();
     loadCustomers();
   }, []);
+
+  // Modal açıldığında müşterileri yenile
+  useEffect(() => {
+    if (showCustomerModal) {
+      console.log('Customer modal opened, reloading customers');
+      loadCustomers();
+    }
+  }, [showCustomerModal]);
 
   const loadCustomers = async () => {
     try {
@@ -162,6 +171,12 @@ export const NewSaleScreen = ({ navigation }: any) => {
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.barcode.includes(searchQuery)
   ) || [];
+
+  // Müşteri filtreleme
+  const filteredCustomers = customers.filter((c) =>
+    c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) ||
+    c.phone.includes(customerSearchQuery)
+  );
 
   // Mobil görünüm: Ürün kartları
   const renderProductCard = ({ item }: { item: Product }) => (
@@ -629,19 +644,29 @@ export const NewSaleScreen = ({ navigation }: any) => {
         {/* Müşteri Seçim Modal */}
         <Modal
           visible={showCustomerModal}
-          onClose={() => setShowCustomerModal(false)}
+          onClose={() => {
+            setShowCustomerModal(false);
+            setCustomerSearchQuery(''); // Aramayı temizle
+          }}
           title="Müşteri Seç"
         >
-          <FlatList
-            data={customers}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
+          <View>
+            <Input
+              placeholder="Müşteri ara (isim, telefon)..."
+              value={customerSearchQuery}
+              onChangeText={setCustomerSearchQuery}
+              leftIcon="magnify"
+              containerStyle={{ marginBottom: SPACING.md }}
+            />
+            <FlatList
+              data={filteredCustomers}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.customerItem}
                 onPress={() => {
                   console.log('Selected customer:', item);
                   setSelectedCustomer(item);
-                  setSelectedPayment('veresiye'); // Otomatik veresiye seç
                   setShowCustomerModal(false);
                 }}
               >
@@ -663,10 +688,22 @@ export const NewSaleScreen = ({ navigation }: any) => {
             )}
             ListEmptyComponent={
               <View style={styles.emptyCustomers}>
-                <Text style={styles.emptyText}>Müşteri bulunamadı</Text>
+                <Text style={styles.emptyText}>
+                  {customers.length === 0 ? 'Henüz müşteri eklenmemiş' : 'Müşteri bulunamadı'}
+                </Text>
+                <Button
+                  title="Yeni Müşteri Ekle"
+                  onPress={() => {
+                    setShowCustomerModal(false);
+                    setShowNewCustomerForm(true);
+                  }}
+                  variant="outline"
+                  style={{ marginTop: SPACING.md }}
+                />
               </View>
             }
           />
+          </View>
         </Modal>
       </View>
     );
@@ -972,6 +1009,71 @@ export const NewSaleScreen = ({ navigation }: any) => {
             loading={isLoading}
           />
         </ScrollView>
+      </Modal>
+
+      {/* Müşteri Seçim Modal (Web için de gerekli) */}
+      <Modal
+        visible={showCustomerModal}
+        onClose={() => {
+          setShowCustomerModal(false);
+          setCustomerSearchQuery(''); // Aramayı temizle
+        }}
+        title="Müşteri Seç"
+      >
+        <View>
+          <Input
+            placeholder="Müşteri ara (isim, telefon)..."
+            value={customerSearchQuery}
+            onChangeText={setCustomerSearchQuery}
+            leftIcon="magnify"
+            containerStyle={{ marginBottom: SPACING.md }}
+          />
+          <FlatList
+            data={filteredCustomers}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.customerItem}
+              onPress={() => {
+                console.log('Selected customer:', item);
+                setSelectedCustomer(item);
+                setShowCustomerModal(false);
+              }}
+            >
+              <View style={styles.customerItemContent}>
+                <Text style={styles.customerName}>{item.name}</Text>
+                <Text style={styles.customerPhone}>{item.phone}</Text>
+                {item.balance > 0 && (
+                  <Text style={styles.customerBalance}>
+                    Borç: ₺{item.balance.toFixed(2)}
+                  </Text>
+                )}
+              </View>
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={24}
+                color={COLORS.textSecondary}
+              />
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyCustomers}>
+              <Text style={styles.emptyText}>
+                {customers.length === 0 ? 'Henüz müşteri eklenmemiş' : 'Müşteri bulunamadı'}
+              </Text>
+              <Button
+                title="Yeni Müşteri Ekle"
+                onPress={() => {
+                  setShowCustomerModal(false);
+                  setShowNewCustomerForm(true);
+                }}
+                variant="outline"
+                style={{ marginTop: SPACING.md }}
+              />
+            </View>
+          }
+        />
+        </View>
       </Modal>
     </View>
   );

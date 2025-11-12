@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Image,
   Platform,
-  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useProductStore } from '../../store/productStore';
@@ -19,6 +18,7 @@ import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
+import { InfoModal } from '../../components/common';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
 import { ProductUnit, Season, ClothingSize, ClothingColor, Product } from '../../types';
 
@@ -62,6 +62,15 @@ export const EditProductScreen = ({ route, navigation }: any) => {
   const [newColorName, setNewColorName] = useState('');
   const [newColorHex, setNewColorHex] = useState('');
   const [newColorStock, setNewColorStock] = useState('');
+  const [infoModal, setInfoModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({ visible: false, title: '', message: '' });
+
+  const showInfo = (title: string, message: string) => {
+    setInfoModal({ visible: true, title, message });
+  };
 
   useEffect(() => {
     const foundProduct = products.find((p) => p.id === productId);
@@ -173,7 +182,7 @@ export const EditProductScreen = ({ route, navigation }: any) => {
 
     const remainingSlots = MAX_IMAGES - productImages.length;
     if (remainingSlots <= 0) {
-      Alert.alert('Maksimum Limit', `En fazla ${MAX_IMAGES} fotoğraf yükleyebilirsiniz`);
+      showInfo('Maksimum Limit', `En fazla ${MAX_IMAGES} fotoğraf yükleyebilirsiniz`);
       return;
     }
 
@@ -201,7 +210,7 @@ export const EditProductScreen = ({ route, navigation }: any) => {
     
     // Fotoğraf validasyonu
     if (productImages.length < MIN_IMAGES) {
-      Alert.alert('Eksik Fotoğraf', `En az ${MIN_IMAGES} fotoğraf eklemelisiniz. Şu an ${productImages.length} fotoğraf var.`);
+      showInfo('Eksik Fotoğraf', `En az ${MIN_IMAGES} fotoğraf eklemelisiniz. Şu an ${productImages.length} fotoğraf var.`);
       return;
     }
     
@@ -538,6 +547,14 @@ export const EditProductScreen = ({ route, navigation }: any) => {
           ))}
         </ScrollView>
       </Modal>
+
+      {/* Info Modal */}
+      <InfoModal
+        visible={infoModal.visible}
+        title={infoModal.title}
+        message={infoModal.message}
+        onClose={() => setInfoModal({ visible: false, title: '', message: '' })}
+      />
     </View>
   );
 };

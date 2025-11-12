@@ -31,7 +31,7 @@ export const CustomersScreen = () => {
   const { token } = useAuthStore();
   
   // Responsive grid - 2 sütun için (min 350px kart genişliği, 220px yükseklik)
-  const gridConfig = useResponsiveGrid(350, 220);
+  const gridConfig = useResponsiveGrid(350, 150);
 
   useEffect(() => {
     loadCustomers();

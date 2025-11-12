@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   TextInput as RNTextInput,
   Image,
   Platform,
@@ -18,6 +17,7 @@ import { Card } from '../../components/common/Card';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { Modal } from '../../components/common/Modal';
+import { InfoModal } from '../../components/common';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
 import { ProductUnit, Season, ClothingSize, ClothingColor } from '../../types';
 
@@ -68,6 +68,15 @@ export const AddProductScreen = ({ navigation, route }: any) => {
   const [newColorName, setNewColorName] = useState('');
   const [newColorHex, setNewColorHex] = useState('');
   const [newColorStock, setNewColorStock] = useState('');
+  const [infoModal, setInfoModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({ visible: false, title: '', message: '' });
+
+  const showInfo = (title: string, message: string) => {
+    setInfoModal({ visible: true, title, message });
+  };
 
   const commonSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '36', '38', '40', '42', '44', '46'];
 
@@ -93,13 +102,13 @@ export const AddProductScreen = ({ navigation, route }: any) => {
 
   const handleAddSize = () => {
     if (!newSize || !newSizeStock) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
+      showInfo('Hata', 'Lütfen tüm alanları doldurun');
       return;
     }
 
     const stockNum = parseInt(newSizeStock, 10);
     if (isNaN(stockNum) || stockNum < 0) {
-      Alert.alert('Hata', 'Geçerli bir stok miktarı girin');
+      showInfo('Hata', 'Geçerli bir stok miktarı girin');
       return;
     }
 
@@ -115,13 +124,13 @@ export const AddProductScreen = ({ navigation, route }: any) => {
 
   const handleAddColor = () => {
     if (!newColorName || !newColorStock) {
-      Alert.alert('Hata', 'Lütfen renk adı ve stok miktarını girin');
+      showInfo('Hata', 'Lütfen renk adı ve stok miktarını girin');
       return;
     }
 
     const stockNum = parseInt(newColorStock, 10);
     if (isNaN(stockNum) || stockNum < 0) {
-      Alert.alert('Hata', 'Geçerli bir stok miktarı girin');
+      showInfo('Hata', 'Geçerli bir stok miktarı girin');
       return;
     }
 
@@ -143,7 +152,7 @@ export const AddProductScreen = ({ navigation, route }: any) => {
 
     const remainingSlots = MAX_IMAGES - productImages.length;
     if (remainingSlots <= 0) {
-      Alert.alert('Maksimum Limit', `En fazla ${MAX_IMAGES} fotoğraf yükleyebilirsiniz`);
+      showInfo('Maksimum Limit', `En fazla ${MAX_IMAGES} fotoğraf yükleyebilirsiniz`);
       return;
     }
 
@@ -169,13 +178,13 @@ export const AddProductScreen = ({ navigation, route }: any) => {
   const handleSubmit = async () => {
     // Fotoğraf validasyonu
     if (productImages.length < MIN_IMAGES) {
-      Alert.alert('Eksik Fotoğraf', `En az ${MIN_IMAGES} fotoğraf eklemelisiniz. Şu an ${productImages.length} fotoğraf var.`);
+      showInfo('Eksik Fotoğraf', `En az ${MIN_IMAGES} fotoğraf eklemelisiniz. Şu an ${productImages.length} fotoğraf var.`);
       return;
     }
     
     // Validasyon
     if (!barcode || !name || !categoryId) {
-      Alert.alert('Hata', 'Lütfen zorunlu alanları doldurun (Barkod, Ürün Adı, Kategori)');
+      showInfo('Hata', 'Lütfen zorunlu alanları doldurun (Barkod, Ürün Adı, Kategori)');
       return;
     }
 
@@ -185,7 +194,7 @@ export const AddProductScreen = ({ navigation, route }: any) => {
     const minStockNum = parseInt(minStock, 10) || 5;
 
     if (purchasePriceNum <= 0 || salePriceNum <= 0) {
-      Alert.alert('Hata', 'Fiyatlar 0\'dan büyük olmalıdır');
+      showInfo('Hata', 'Fiyatlar 0\'dan büyük olmalıdır');
       return;
     }
 
@@ -229,9 +238,9 @@ export const AddProductScreen = ({ navigation, route }: any) => {
       setCareInstructions('');
       setShelfLocation('');
       
-      Alert.alert('Başarılı', 'Ürün başarıyla eklendi. Yeni ürün ekleyebilirsiniz.');
+      showInfo('Başarılı', 'Ürün başarıyla eklendi. Yeni ürün ekleyebilirsiniz.');
     } else {
-      Alert.alert('Hata', 'Ürün eklenirken bir hata oluştu');
+      showInfo('Hata', 'Ürün eklenirken bir hata oluştu');
     }
   };
 
@@ -721,6 +730,14 @@ export const AddProductScreen = ({ navigation, route }: any) => {
           )}
         </ScrollView>
       </Modal>
+
+      {/* Info Modal */}
+      <InfoModal
+        visible={infoModal.visible}
+        title={infoModal.title}
+        message={infoModal.message}
+        onClose={() => setInfoModal({ visible: false, title: '', message: '' })}
+      />
     </View>
   );
 };

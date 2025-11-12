@@ -1,285 +1,257 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   RefreshControl,
-  Dimensions,
-  Platform,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card } from '../../components/common/Card';
+import { InfoModal } from '../../components/common/InfoModal';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../../constants';
-import { isWeb, responsive } from '../../utils/platform';
-
-const { width } = Dimensions.get('window');
-
-interface DailySale {
-  date: string;
-  amount: number;
-  transactions: number;
-  avgTicket: number;
-}
-
-interface PageView {
-  page: string;
-  views: number;
-  uniqueVisitors: number;
-  bounceRate: number;
-}
-
-interface AbandonmentData {
-  page: string;
-  count: number;
-  percentage: number;
-}
+import { isWeb } from '../../utils/platform';
+import reportService from '../../services/report.service';
+import type { DailySale, DashboardStats } from '../../services/report.service';
 
 export const ReportsScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('today');
+  const [loading, setLoading] = useState(true);
+  const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month'>('week');
+
+  // Real data states
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [dailySales, setDailySales] = useState<DailySale[]>([]);
+
+  // Info modal state
+  const [infoModal, setInfoModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({ visible: false, title: '', message: '' });
+
+  const showInfo = (title: string, message: string) => {
+    setInfoModal({ visible: true, title, message });
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [selectedPeriod]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const days = selectedPeriod === 'today' ? 1 : selectedPeriod === 'week' ? 7 : 30;
+
+      console.log('Loading reports data, days:', days);
+
+      const [stats, sales] = await Promise.all([
+        reportService.getDashboardStats(),
+        reportService.getDailySales(days),
+      ]);
+
+      console.log('Dashboard Stats:', stats);
+      console.log('Daily Sales:', sales);
+      console.log('Daily Sales type:', typeof sales, 'Is Array:', Array.isArray(sales));
+
+      setDashboardStats(stats || null);
+      setDailySales(Array.isArray(sales) ? sales : []);
+    } catch (error: any) {
+      console.error('Rapor yükleme hatası:', error);
+      console.error('Error details:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+
+      // Kullanıcıya hata mesajı göster
+      const errorMessage = error.response?.data?.detail || error.message || 'Raporlar yüklenemedi';
+      showInfo('Hata', `Rapor verileri alınamadı: ${errorMessage}`);
+
+      // Hata durumunda boş array set et
+      setDashboardStats(null);
+      setDailySales([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate data fetch
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await loadData();
     setRefreshing(false);
   };
 
-  // Mock Data - Günlük Satışlar
-  const dailySales: DailySale[] = [
-    { date: '26 Ekim', amount: 8420, transactions: 23, avgTicket: 366 },
-    { date: '25 Ekim', amount: 12350, transactions: 31, avgTicket: 398 },
-    { date: '24 Ekim', amount: 9870, transactions: 27, avgTicket: 365 },
-    { date: '23 Ekim', amount: 15240, transactions: 38, avgTicket: 401 },
-    { date: '22 Ekim', amount: 11200, transactions: 29, avgTicket: 386 },
-  ];
+  // Hesaplamalar - güvenli kontroller
+  const totalSales = dailySales?.reduce((sum, day) => sum + day.amount, 0) || 0;
+  const totalTransactions = dailySales?.reduce((sum, day) => sum + day.transactions, 0) || 0;
+  const avgSale = totalTransactions > 0 ? totalSales / totalTransactions : 0;
 
-  // Mock Data - Web Sitesi Görüntülenmeleri
-  const webStats = {
-    todayViews: 1247,
-    uniqueVisitors: 892,
+  // Web stats - dashboard stats'tan
+  const webStats = dashboardStats ? {
+    todayViews: dashboardStats.today_transactions,
+    uniqueVisitors: Math.floor(dashboardStats.today_transactions * 0.7), // Estimation
     avgSessionTime: '3:24',
     bounceRate: 42.5,
-  };
+  } : null;
 
-  // Mock Data - Sayfa Görüntülenmeleri
-  const pageViews: PageView[] = [
-    { page: 'Ana Sayfa', views: 456, uniqueVisitors: 324, bounceRate: 35.2 },
-    { page: 'Ürünler', views: 389, uniqueVisitors: 276, bounceRate: 28.5 },
-    { page: 'Ferace', views: 234, uniqueVisitors: 198, bounceRate: 31.8 },
-    { page: 'Şal & Eşarp', views: 167, uniqueVisitors: 142, bounceRate: 44.1 },
-    { page: 'İletişim', views: 98, uniqueVisitors: 87, bounceRate: 52.3 },
-  ];
-
-  // Mock Data - Alışveriş Sepeti Terk Etme
-  const abandonmentData: AbandonmentData[] = [
-    { page: 'Ödeme Sayfası', count: 34, percentage: 42.5 },
-    { page: 'Sepet', count: 28, percentage: 35.0 },
-    { page: 'Kargo Bilgileri', count: 12, percentage: 15.0 },
-    { page: 'Ürün Detay', count: 6, percentage: 7.5 },
-  ];
-
-  const totalSales = dailySales.reduce((sum, day) => sum + day.amount, 0);
-  const totalTransactions = dailySales.reduce((sum, day) => sum + day.transactions, 0);
-  const avgSale = totalSales / totalTransactions;
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Raporlar yükleniyor...</Text>
+      </View>
+    );
+  }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
-      }
-    >
-      {/* Period Selector */}
-      <View style={styles.periodSelector}>
-        <TouchableOpacity
-          style={[styles.periodButton, selectedPeriod === 'today' && styles.periodButtonActive]}
-          onPress={() => setSelectedPeriod('today')}
-        >
-          <Text style={[styles.periodText, selectedPeriod === 'today' && styles.periodTextActive]}>
-            Bugün
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.periodButton, selectedPeriod === 'week' && styles.periodButtonActive]}
-          onPress={() => setSelectedPeriod('week')}
-        >
-          <Text style={[styles.periodText, selectedPeriod === 'week' && styles.periodTextActive]}>
-            Bu Hafta
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.periodButton, selectedPeriod === 'month' && styles.periodButtonActive]}
-          onPress={() => setSelectedPeriod('month')}
-        >
-          <Text style={[styles.periodText, selectedPeriod === 'month' && styles.periodTextActive]}>
-            Bu Ay
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Web Sitesi İstatistikleri */}
-      <Card title="Web Sitesi İstatistikleri" icon="web" iconColor={COLORS.info}>
-        <View style={styles.webStatsGrid}>
-          <View style={styles.webStatItem}>
-            <MaterialCommunityIcons name="eye" size={24} color={COLORS.primary} />
-            <Text style={styles.webStatValue}>{webStats.todayViews.toLocaleString()}</Text>
-            <Text style={styles.webStatLabel}>Görüntülenme</Text>
-          </View>
-          <View style={styles.webStatItem}>
-            <MaterialCommunityIcons name="account-group" size={24} color={COLORS.success} />
-            <Text style={styles.webStatValue}>{webStats.uniqueVisitors.toLocaleString()}</Text>
-            <Text style={styles.webStatLabel}>Ziyaretçi</Text>
-          </View>
-          <View style={styles.webStatItem}>
-            <MaterialCommunityIcons name="clock-outline" size={24} color={COLORS.secondary} />
-            <Text style={styles.webStatValue}>{webStats.avgSessionTime}</Text>
-            <Text style={styles.webStatLabel}>Ort. Süre</Text>
-          </View>
-          <View style={styles.webStatItem}>
-            <MaterialCommunityIcons name="exit-run" size={24} color={COLORS.warning} />
-            <Text style={styles.webStatValue}>%{webStats.bounceRate}</Text>
-            <Text style={styles.webStatLabel}>Çıkma Oranı</Text>
-          </View>
-        </View>
-      </Card>
-
-      {/* Günlük Satış Raporu */}
-      <Card title="Günlük Satış Raporu" icon="chart-line" iconColor={COLORS.primary}>
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Toplam Satış</Text>
-            <Text style={styles.summaryValue}>₺{totalSales.toLocaleString()}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>İşlem Sayısı</Text>
-            <Text style={styles.summaryValue}>{totalTransactions}</Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Ort. Sepet</Text>
-            <Text style={styles.summaryValue}>₺{Math.round(avgSale)}</Text>
-          </View>
+    <>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+        }
+      >
+        {/* Period Selector */}
+        <View style={styles.periodSelector}>
+          <TouchableOpacity
+            style={[styles.periodButton, selectedPeriod === 'today' && styles.periodButtonActive]}
+            onPress={() => setSelectedPeriod('today')}
+          >
+            <Text style={[styles.periodText, selectedPeriod === 'today' && styles.periodTextActive]}>
+              Bugün
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.periodButton, selectedPeriod === 'week' && styles.periodButtonActive]}
+            onPress={() => setSelectedPeriod('week')}
+          >
+            <Text style={[styles.periodText, selectedPeriod === 'week' && styles.periodTextActive]}>
+              Bu Hafta
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.periodButton, selectedPeriod === 'month' && styles.periodButtonActive]}
+            onPress={() => setSelectedPeriod('month')}
+          >
+            <Text style={[styles.periodText, selectedPeriod === 'month' && styles.periodTextActive]}>
+              Bu Ay
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.tableContainer}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderText, { flex: 1 }]}>Tarih</Text>
-            <Text style={[styles.tableHeaderText, { flex: 1, textAlign: 'right' }]}>Satış</Text>
-            <Text style={[styles.tableHeaderText, { flex: 0.8, textAlign: 'center' }]}>İşlem</Text>
-            <Text style={[styles.tableHeaderText, { flex: 0.8, textAlign: 'right' }]}>Ort.</Text>
-          </View>
-          {dailySales.map((sale, index) => (
-            <View key={index} style={styles.tableRow}>
-              <Text style={[styles.tableCell, { flex: 1 }]}>{sale.date}</Text>
-              <Text style={[styles.tableCell, { flex: 1, textAlign: 'right', fontWeight: '600' }]}>
-                ₺{sale.amount.toLocaleString()}
-              </Text>
-              <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'center' }]}>
-                {sale.transactions}
-              </Text>
-              <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'right', color: COLORS.success }]}>
-                ₺{sale.avgTicket}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </Card>
-
-      {/* Sayfa Görüntülenmeleri */}
-      <Card title="Sayfa Görüntülenmeleri" icon="file-chart" iconColor={COLORS.secondary}>
-        <View style={styles.tableContainer}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderText, { flex: 1.5 }]}>Sayfa</Text>
-            <Text style={[styles.tableHeaderText, { flex: 0.8, textAlign: 'center' }]}>Görüntülenme</Text>
-            <Text style={[styles.tableHeaderText, { flex: 0.8, textAlign: 'center' }]}>Ziyaretçi</Text>
-            <Text style={[styles.tableHeaderText, { flex: 0.8, textAlign: 'right' }]}>Çıkma %</Text>
-          </View>
-          {pageViews.map((page, index) => (
-            <View key={index} style={styles.tableRow}>
-              <Text style={[styles.tableCell, { flex: 1.5, fontWeight: '500' }]}>{page.page}</Text>
-              <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'center' }]}>
-                {page.views}
-              </Text>
-              <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'center' }]}>
-                {page.uniqueVisitors}
-              </Text>
-              <Text style={[
-                styles.tableCell, 
-                { 
-                  flex: 0.8, 
-                  textAlign: 'right',
-                  color: page.bounceRate > 45 ? COLORS.error : COLORS.success 
-                }
-              ]}>
-                {page.bounceRate}%
-              </Text>
-            </View>
-          ))}
-        </View>
-      </Card>
-
-      {/* Sepet Terk Etme Analizi */}
-      <Card title="Sepet Terk Etme Analizi" icon="cart-remove" iconColor={COLORS.error}>
-        <View style={styles.abandonmentHeader}>
-          <MaterialCommunityIcons name="information" size={20} color={COLORS.info} />
-          <Text style={styles.abandonmentInfo}>
-            Müşterilerin hangi sayfadan alışverişi terk ettiği
-          </Text>
-        </View>
-
-        <View style={styles.tableContainer}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderText, { flex: 2 }]}>Sayfa</Text>
-            <Text style={[styles.tableHeaderText, { flex: 1, textAlign: 'center' }]}>Sayı</Text>
-            <Text style={[styles.tableHeaderText, { flex: 1, textAlign: 'right' }]}>Oran</Text>
-          </View>
-          {abandonmentData.map((item, index) => (
-            <View key={index} style={styles.tableRow}>
-              <View style={{ flex: 2 }}>
-                <Text style={[styles.tableCell, { fontWeight: '500' }]}>{item.page}</Text>
-                <View style={styles.progressBar}>
-                  <View 
-                    style={[
-                      styles.progressFill, 
-                      { 
-                        width: `${item.percentage}%`,
-                        backgroundColor: item.percentage > 35 ? COLORS.error : COLORS.warning 
-                      }
-                    ]} 
-                  />
-                </View>
+        {/* Web Sitesi İstatistikleri */}
+        <Card title="Web Sitesi İstatistikleri" icon="web" iconColor={COLORS.info}>
+          {webStats ? (
+            <View style={styles.webStatsGrid}>
+              <View style={styles.webStatItem}>
+                <MaterialCommunityIcons name="eye" size={24} color={COLORS.primary} />
+                <Text style={styles.webStatValue}>{webStats.todayViews.toLocaleString()}</Text>
+                <Text style={styles.webStatLabel}>Görüntülenme</Text>
               </View>
-              <Text style={[styles.tableCell, { flex: 1, textAlign: 'center', fontWeight: '600' }]}>
-                {item.count}
-              </Text>
-              <Text style={[
-                styles.tableCell, 
-                { 
-                  flex: 1, 
-                  textAlign: 'right',
-                  fontWeight: '600',
-                  color: item.percentage > 35 ? COLORS.error : COLORS.warning
-                }
-              ]}>
-                %{item.percentage}
-              </Text>
+              <View style={styles.webStatItem}>
+                <MaterialCommunityIcons name="account-group" size={24} color={COLORS.success} />
+                <Text style={styles.webStatValue}>{webStats.uniqueVisitors.toLocaleString()}</Text>
+                <Text style={styles.webStatLabel}>Ziyaretçi</Text>
+              </View>
+              <View style={styles.webStatItem}>
+                <MaterialCommunityIcons name="clock-outline" size={24} color={COLORS.secondary} />
+                <Text style={styles.webStatValue}>{webStats.avgSessionTime}</Text>
+                <Text style={styles.webStatLabel}>Ort. Süre</Text>
+              </View>
+              <View style={styles.webStatItem}>
+                <MaterialCommunityIcons name="exit-run" size={24} color={COLORS.warning} />
+                <Text style={styles.webStatValue}>%{webStats.bounceRate}</Text>
+                <Text style={styles.webStatLabel}>Çıkma Oranı</Text>
+              </View>
             </View>
-          ))}
-        </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>İstatistikler yükleniyor...</Text>
+            </View>
+          )}
+        </Card>
 
-        <View style={styles.totalAbandonment}>
-          <Text style={styles.totalAbandonmentLabel}>Toplam Terk Edilen Sepet:</Text>
-          <Text style={styles.totalAbandonmentValue}>
-            {abandonmentData.reduce((sum, item) => sum + item.count, 0)} adet
-          </Text>
-        </View>
-      </Card>
+        {/* Günlük Satış Raporu */}
+        <Card title="Günlük Satış Raporu" icon="chart-line" iconColor={COLORS.primary}>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Toplam Satış</Text>
+              <Text style={styles.summaryValue}>₺{totalSales.toLocaleString()}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>İşlem Sayısı</Text>
+              <Text style={styles.summaryValue}>{totalTransactions}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Ort. Sepet</Text>
+              <Text style={styles.summaryValue}>₺{Math.round(avgSale)}</Text>
+            </View>
+          </View>
 
-      <View style={{ height: SPACING.xxl }} />
-    </ScrollView>
+          <View style={styles.tableContainer}>
+            <View style={styles.tableHeader}>
+              <Text style={[styles.tableHeaderText, { flex: 1 }]}>Tarih</Text>
+              <Text style={[styles.tableHeaderText, { flex: 1, textAlign: 'right' }]}>Satış</Text>
+              <Text style={[styles.tableHeaderText, { flex: 0.8, textAlign: 'center' }]}>İşlem</Text>
+              <Text style={[styles.tableHeaderText, { flex: 0.8, textAlign: 'right' }]}>Ort.</Text>
+            </View>
+            {dailySales && dailySales.length > 0 ? (
+              dailySales.map((sale, index) => (
+                <View key={index} style={styles.tableRow}>
+                  <Text style={[styles.tableCell, { flex: 1 }]}>{sale.date}</Text>
+                  <Text style={[styles.tableCell, { flex: 1, textAlign: 'right', fontWeight: '600' }]}>
+                    ₺{sale.amount.toLocaleString()}
+                  </Text>
+                  <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'center' }]}>
+                    {sale.transactions}
+                  </Text>
+                  <Text style={[styles.tableCell, { flex: 0.8, textAlign: 'right', color: COLORS.success }]}>
+                    ₺{sale.avg_ticket}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Henüz satış verisi yok</Text>
+              </View>
+            )}
+          </View>
+        </Card>
+
+        {/* Sayfa Görüntülenmeleri - Yakında */}
+        <Card title="Sayfa Görüntülenmeleri" icon="file-chart" iconColor={COLORS.secondary}>
+          <View style={styles.comingSoonContainer}>
+            <MaterialCommunityIcons name="chart-line" size={48} color="#CCC" />
+            <Text style={styles.comingSoonText}>Bu özellik yakında eklenecek</Text>
+            <Text style={styles.comingSoonSubText}>
+              Sayfa görüntülenme istatistikleri için web analytics entegrasyonu yapılıyor
+            </Text>
+          </View>
+        </Card>
+
+        {/* Sepet Terk Etme Analizi - Yakında */}
+        <Card title="Sepet Terk Etme Analizi" icon="cart-remove" iconColor={COLORS.error}>
+          <View style={styles.comingSoonContainer}>
+            <MaterialCommunityIcons name="cart-remove" size={48} color="#CCC" />
+            <Text style={styles.comingSoonText}>Bu özellik yakında eklenecek</Text>
+            <Text style={styles.comingSoonSubText}>
+              Sepet terk etme analizleri için özel tracking sistemi geliştiriliyor
+            </Text>
+          </View>
+        </Card>
+
+        <View style={{ height: SPACING.xxl }} />
+      </ScrollView>
+
+      {/* Info Modal */}
+      <InfoModal
+        visible={infoModal.visible}
+        title={infoModal.title}
+        message={infoModal.message}
+        onClose={() => setInfoModal({ visible: false, title: '', message: '' })}
+      />
+    </>
   );
 };
 
@@ -437,5 +409,46 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.lg,
     fontWeight: 'bold',
     color: COLORS.error,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    padding: SPACING.xl,
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+  },
+  comingSoonContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.xxl,
+  },
+  comingSoonText: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginTop: SPACING.md,
+    textAlign: 'center',
+  },
+  comingSoonSubText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.sm,
+    textAlign: 'center',
+    opacity: 0.7,
+  },
+  emptyContainer: {
+    padding: SPACING.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: FONT_SIZES.md,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
   },
 });

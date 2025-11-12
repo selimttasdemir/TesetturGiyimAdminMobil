@@ -9,6 +9,7 @@ import {
   Dimensions,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -65,7 +66,7 @@ const getResponsiveConfig = () => {
     gridPadding,
     itemSpacing,
     itemWidth: Math.max(itemWidth, minCardWidth),
-    cardHeight: 200,
+    cardHeight:225,
   };
 };
 
@@ -242,6 +243,21 @@ export const ProductListScreen = ({ navigation }: any) => {
     const totalStock = getTotalStock(item);
     const badges = getProductBadges(item);
     
+    // Fotoğrafı parse et
+    let productImage = null;
+    if (item.imageUrl) {
+      try {
+        const parsedImages = JSON.parse(item.imageUrl);
+        if (Array.isArray(parsedImages) && parsedImages.length > 0) {
+          productImage = parsedImages[0]; // İlk fotoğrafı al
+        } else {
+          productImage = item.imageUrl; // Tek fotoğraf
+        }
+      } catch {
+        productImage = item.imageUrl; // Parse edilemezse direkt kullan
+      }
+    }
+    
     return (
       <View style={[styles.productGridItem, { width: gridConfig.itemWidth }]}>
         <TouchableOpacity
@@ -249,6 +265,23 @@ export const ProductListScreen = ({ navigation }: any) => {
           activeOpacity={0.7}
           style={[styles.productGridCard, { height: gridConfig.cardHeight }]}
         >
+          {/* Ürün Fotoğrafı */}
+          {productImage ? (
+            <Image
+              source={{ uri: productImage }}
+              style={styles.productImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.productImagePlaceholder}>
+              <MaterialCommunityIcons 
+                name="image-outline" 
+                size={40} 
+                color={COLORS.textSecondary} 
+              />
+            </View>
+          )}
+          
           {/* Etiketler - Üstte */}
           {badges.length > 0 && (
             <View style={styles.badgesContainer}>
@@ -674,6 +707,27 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web'
       ? { boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }
       : { elevation: 2 }) as any,
+  },
+  
+  // Ürün fotoğrafı
+  productImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: BORDER_RADIUS.sm,
+    marginBottom: 8,
+    backgroundColor: COLORS.background,
+  },
+  productImagePlaceholder: {
+    width: '100%',
+    height: 120,
+    borderRadius: BORDER_RADIUS.sm,
+    marginBottom: 8,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderStyle: 'dashed',
   },
   
   // Grid içindeki bileşenler
