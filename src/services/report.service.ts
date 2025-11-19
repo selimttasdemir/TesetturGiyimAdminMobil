@@ -3,10 +3,16 @@ import api from './api.service';
 export interface DashboardStats {
   today_sales: number;
   today_transactions: number;
+  today_profit: number;
+  today_cost: number;
   monthly_sales: number;
   monthly_transactions: number;
+  monthly_profit: number;
+  monthly_cost: number;
   total_sales: number;
   total_transactions: number;
+  total_profit: number;
+  total_cost: number;
   low_stock_items: number;
   total_products: number;
 }

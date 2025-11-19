@@ -24,18 +24,25 @@ export const DashboardScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const { products, fetchProducts } = useProductStore();
   const { fetchSales } = useSaleStore();
-  
+
   const [refreshing, setRefreshing] = React.useState(false);
   const [stats, setStats] = React.useState({
     todaySales: 0,
     todayTransactions: 0,
+    todayProfit: 0,
+    todayCost: 0,
     monthlySales: 0,
     monthlyTransactions: 0,
+    monthlyProfit: 0,
+    monthlyCost: 0,
     totalSales: 0,
     totalTransactions: 0,
+    totalProfit: 0,
+    totalCost: 0,
     lowStockItems: 0,
     totalProducts: 0,
   });
+  const [activities, setActivities] = React.useState<any[]>([]);
 
   useEffect(() => {
     loadData();
@@ -47,6 +54,7 @@ export const DashboardScreen = ({ navigation }: any) => {
         fetchProducts({ pageSize: 5 }),
         fetchSales({ pageSize: 10 }),
         fetchDashboardStats(),
+        fetchRecentActivities(),
       ]);
     } catch (error) {
       console.error('Dashboard data load error:', error);
@@ -61,22 +69,46 @@ export const DashboardScreen = ({ navigation }: any) => {
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setStats({
           todaySales: data.today_sales || 0,
           todayTransactions: data.today_transactions || 0,
+          todayProfit: data.today_profit || 0,
+          todayCost: data.today_cost || 0,
           monthlySales: data.monthly_sales || 0,
           monthlyTransactions: data.monthly_transactions || 0,
+          monthlyProfit: data.monthly_profit || 0,
+          monthlyCost: data.monthly_cost || 0,
           totalSales: data.total_sales || 0,
           totalTransactions: data.total_transactions || 0,
+          totalProfit: data.total_profit || 0,
+          totalCost: data.total_cost || 0,
           lowStockItems: data.low_stock_items || 0,
           totalProducts: data.total_products || 0,
         });
       }
     } catch (error) {
       console.error('Dashboard stats error:', error);
+    }
+  };
+
+  const fetchRecentActivities = async () => {
+    try {
+      const token = await useAuthStore.getState().token;
+      const response = await fetch('http://localhost:8000/api/reports/recent-activities?limit=10', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setActivities(data);
+      }
+    } catch (error) {
+      console.error('Recent activities error:', error);
     }
   };
 
@@ -87,42 +119,42 @@ export const DashboardScreen = ({ navigation }: any) => {
   };
 
   const quickActions = [
-    { 
-      id: 1, 
-      title: 'Hızlı Satış', 
-      icon: 'cart-plus', 
-      color: COLORS.primary, 
+    {
+      id: 1,
+      title: 'Hızlı Satış',
+      icon: 'cart-plus',
+      color: COLORS.primary,
       screen: 'Sales',
       description: 'Yeni satış oluştur'
     },
-    { 
-      id: 2, 
-      title: 'Ürün Ekle', 
-      icon: 'hanger', 
-      color: COLORS.success, 
+    {
+      id: 2,
+      title: 'Ürün Ekle',
+      icon: 'hanger',
+      color: COLORS.success,
       screen: 'Products',
       description: 'Yeni ürün ekle'
     },
-    { 
-      id: 3, 
-      title: 'Barkod Tara', 
-      icon: 'barcode-scan', 
-      color: COLORS.secondary, 
+    {
+      id: 3,
+      title: 'Barkod Tara',
+      icon: 'barcode-scan',
+      color: COLORS.secondary,
       screen: 'Products',
       description: 'Barkod ile ara'
     },
-    { 
-      id: 4, 
-      title: 'Raporlar', 
-      icon: 'chart-line', 
-      color: COLORS.info, 
+    {
+      id: 4,
+      title: 'Raporlar',
+      icon: 'chart-line',
+      color: COLORS.info,
       screen: 'Reports',
       description: 'Detaylı raporlar'
     },
   ];
 
   // Responsive card width - 6 kart için
-  const cardWidth = isWeb 
+  const cardWidth = isWeb
     ? Math.min((width - SPACING.md * 4) / 3, 200) // Web: 3 sütun
     : (width - SPACING.md * 3) / 2; // Mobil: 2 sütun
 
@@ -151,10 +183,10 @@ export const DashboardScreen = ({ navigation }: any) => {
       {/* Stats Grid - Mobil uyumlu */}
       <View style={styles.statsContainer}>
         <View style={[styles.statCard, { width: cardWidth }, styles.statPrimary]}>
-          <MaterialCommunityIcons 
-            name="cash-multiple" 
-            size={isSmallDevice ? 24 : 32} 
-            color={COLORS.surface} 
+          <MaterialCommunityIcons
+            name="cash-multiple"
+            size={isSmallDevice ? 24 : 32}
+            color={COLORS.surface}
           />
           <Text style={[styles.statValue, isSmallDevice && styles.statValueSmall]}>
             {`₺${stats.todaySales.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`}
@@ -165,10 +197,10 @@ export const DashboardScreen = ({ navigation }: any) => {
         </View>
 
         <View style={[styles.statCard, { width: cardWidth }, styles.statSuccess]}>
-          <MaterialCommunityIcons 
-            name="calendar-month" 
-            size={isSmallDevice ? 24 : 32} 
-            color={COLORS.surface} 
+          <MaterialCommunityIcons
+            name="calendar-month"
+            size={isSmallDevice ? 24 : 32}
+            color={COLORS.surface}
           />
           <Text style={[styles.statValue, isSmallDevice && styles.statValueSmall]}>
             {`₺${stats.monthlySales.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`}
@@ -179,10 +211,10 @@ export const DashboardScreen = ({ navigation }: any) => {
         </View>
 
         <View style={[styles.statCard, { width: cardWidth }, styles.statInfo]}>
-          <MaterialCommunityIcons 
-            name="chart-line" 
-            size={isSmallDevice ? 24 : 32} 
-            color={COLORS.surface} 
+          <MaterialCommunityIcons
+            name="chart-line"
+            size={isSmallDevice ? 24 : 32}
+            color={COLORS.surface}
           />
           <Text style={[styles.statValue, isSmallDevice && styles.statValueSmall]}>
             {`₺${stats.totalSales.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`}
@@ -193,10 +225,10 @@ export const DashboardScreen = ({ navigation }: any) => {
         </View>
 
         <View style={[styles.statCard, { width: cardWidth }, styles.statSecondary]}>
-          <MaterialCommunityIcons 
-            name="receipt" 
-            size={isSmallDevice ? 24 : 32} 
-            color={COLORS.surface} 
+          <MaterialCommunityIcons
+            name="receipt"
+            size={isSmallDevice ? 24 : 32}
+            color={COLORS.surface}
           />
           <Text style={[styles.statValue, isSmallDevice && styles.statValueSmall]}>
             {stats.todayTransactions}
@@ -207,10 +239,10 @@ export const DashboardScreen = ({ navigation }: any) => {
         </View>
 
         <View style={[styles.statCard, { width: cardWidth }, styles.statWarning]}>
-          <MaterialCommunityIcons 
-            name="alert" 
-            size={isSmallDevice ? 24 : 32} 
-            color={COLORS.surface} 
+          <MaterialCommunityIcons
+            name="alert"
+            size={isSmallDevice ? 24 : 32}
+            color={COLORS.surface}
           />
           <Text style={[styles.statValue, isSmallDevice && styles.statValueSmall]}>
             {stats.lowStockItems}
@@ -221,10 +253,10 @@ export const DashboardScreen = ({ navigation }: any) => {
         </View>
 
         <View style={[styles.statCard, { width: cardWidth }, styles.statDark]}>
-          <MaterialCommunityIcons 
-            name="hanger" 
-            size={isSmallDevice ? 24 : 32} 
-            color={COLORS.surface} 
+          <MaterialCommunityIcons
+            name="hanger"
+            size={isSmallDevice ? 24 : 32}
+            color={COLORS.surface}
           />
           <Text style={[styles.statValue, isSmallDevice && styles.statValueSmall]}>
             {stats.totalProducts}
@@ -235,72 +267,193 @@ export const DashboardScreen = ({ navigation }: any) => {
         </View>
       </View>
 
-      {/* Quick Actions */}
-      <Card title="Hızlı İşlemler" icon="lightning-bolt" iconColor={COLORS.primary}>
-        <View style={styles.quickActionsGrid}>
-          {quickActions.map((action) => (
-            <TouchableOpacity
-              key={action.id}
-              style={styles.actionCard}
-              onPress={() => navigation.navigate(action.screen)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.actionIconContainer, { backgroundColor: `${action.color}15` }]}>
-                <MaterialCommunityIcons 
-                  name={action.icon as any} 
-                  size={32} 
-                  color={action.color} 
-                />
-              </View>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionCardTitle}>{action.title}</Text>
-                <Text style={styles.actionCardDescription}>{action.description}</Text>
-              </View>
-              <MaterialCommunityIcons 
-                name="chevron-right" 
-                size={20} 
-                color={COLORS.textSecondary} 
-              />
-            </TouchableOpacity>
-          ))}
+      {/* Ciro Takibi - Kar/Zarar Analizi */}
+      <Card title="Ciro Takibi" icon="chart-box" iconColor={COLORS.success}>
+        <View style={styles.profitContainer}>
+          {/* Bugün */}
+          <View style={styles.profitCard}>
+            <View style={styles.profitHeader}>
+              <MaterialCommunityIcons name="calendar-today" size={20} color={COLORS.primary} />
+              <Text style={styles.profitPeriod}>Bugün</Text>
+            </View>
+            <View style={styles.profitRow}>
+              <Text style={styles.profitLabel}>Satış:</Text>
+              <Text style={styles.profitValue}>
+                ₺{stats.todaySales.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <View style={styles.profitRow}>
+              <Text style={styles.profitLabel}>Maliyet:</Text>
+              <Text style={[styles.profitValue, { color: COLORS.error }]}>
+                ₺{stats.todayCost.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <View style={[styles.profitRow, styles.profitTotalRow]}>
+              <Text style={styles.profitTotalLabel}>Net Kar:</Text>
+              <Text style={[styles.profitTotalValue, { color: stats.todayProfit >= 0 ? COLORS.success : COLORS.error }]}>
+                ₺{stats.todayProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <View style={styles.profitMargin}>
+              <Text style={styles.profitMarginLabel}>Kar Marjı:</Text>
+              <Text style={styles.profitMarginValue}>
+                {stats.todaySales > 0 ? `%${((stats.todayProfit / stats.todaySales) * 100).toFixed(1)}` : '%0.0'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Bu Ay */}
+          <View style={styles.profitCard}>
+            <View style={styles.profitHeader}>
+              <MaterialCommunityIcons name="calendar-month" size={20} color={COLORS.success} />
+              <Text style={styles.profitPeriod}>Bu Ay</Text>
+            </View>
+            <View style={styles.profitRow}>
+              <Text style={styles.profitLabel}>Satış:</Text>
+              <Text style={styles.profitValue}>
+                ₺{stats.monthlySales.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <View style={styles.profitRow}>
+              <Text style={styles.profitLabel}>Maliyet:</Text>
+              <Text style={[styles.profitValue, { color: COLORS.error }]}>
+                ₺{stats.monthlyCost.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <View style={[styles.profitRow, styles.profitTotalRow]}>
+              <Text style={styles.profitTotalLabel}>Net Kar:</Text>
+              <Text style={[styles.profitTotalValue, { color: stats.monthlyProfit >= 0 ? COLORS.success : COLORS.error }]}>
+                ₺{stats.monthlyProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <View style={styles.profitMargin}>
+              <Text style={styles.profitMarginLabel}>Kar Marjı:</Text>
+              <Text style={styles.profitMarginValue}>
+                {stats.monthlySales > 0 ? `%${((stats.monthlyProfit / stats.monthlySales) * 100).toFixed(1)}` : '%0.0'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Toplam */}
+          <View style={styles.profitCard}>
+            <View style={styles.profitHeader}>
+              <MaterialCommunityIcons name="chart-line" size={20} color={COLORS.info} />
+              <Text style={styles.profitPeriod}>Toplam</Text>
+            </View>
+            <View style={styles.profitRow}>
+              <Text style={styles.profitLabel}>Satış:</Text>
+              <Text style={styles.profitValue}>
+                ₺{stats.totalSales.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <View style={styles.profitRow}>
+              <Text style={styles.profitLabel}>Maliyet:</Text>
+              <Text style={[styles.profitValue, { color: COLORS.error }]}>
+                ₺{stats.totalCost.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <View style={[styles.profitRow, styles.profitTotalRow]}>
+              <Text style={styles.profitTotalLabel}>Net Kar:</Text>
+              <Text style={[styles.profitTotalValue, { color: stats.totalProfit >= 0 ? COLORS.success : COLORS.error }]}>
+                ₺{stats.totalProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+            <View style={styles.profitMargin}>
+              <Text style={styles.profitMarginLabel}>Kar Marjı:</Text>
+              <Text style={styles.profitMarginValue}>
+                {stats.totalSales > 0 ? `%${((stats.totalProfit / stats.totalSales) * 100).toFixed(1)}` : '%0.0'}
+              </Text>
+            </View>
+          </View>
         </View>
       </Card>
 
-      {/* Recent Activity */}
-      <Card title="Son Aktiviteler" icon="history" iconColor={COLORS.primary}>
-        <View style={styles.activityList}>
-          <View style={styles.activityItem}>
-            <View style={[styles.activityIcon, { backgroundColor: `${COLORS.success}15` }]}>
-              <MaterialCommunityIcons name="cart-check" size={20} color={COLORS.success} />
+      {/* Hızlı İşlemler ve Son Aktiviteler - Yan Yana */}
+      <View style={styles.sideBySideContainer}>
+        {/* Quick Actions */}
+        <View style={styles.sideBySideCard}>
+          <Card title="Hızlı İşlemler" icon="lightning-bolt" iconColor={COLORS.primary}>
+            <View style={styles.quickActionsGrid}>
+              {quickActions.map((action) => (
+                <TouchableOpacity
+                  key={action.id}
+                  style={styles.actionCard}
+                  onPress={() => navigation.navigate(action.screen)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.actionIconContainer, { backgroundColor: `${action.color}15` }]}>
+                    <MaterialCommunityIcons
+                      name={action.icon as any}
+                      size={32}
+                      color={action.color}
+                    />
+                  </View>
+                  <View style={styles.actionContent}>
+                    <Text style={styles.actionCardTitle}>{action.title}</Text>
+                    <Text style={styles.actionCardDescription}>{action.description}</Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={20}
+                    color={COLORS.textSecondary}
+                  />
+                </TouchableOpacity>
+              ))}
             </View>
-            <View style={styles.activityText}>
-              <Text style={styles.activityTitle}>Ferace satışı tamamlandı</Text>
-              <Text style={styles.activityTime}>5 dakika önce</Text>
-            </View>
-            <Text style={styles.activityAmount}>₺450</Text>
-          </View>
-
-          <View style={styles.activityItem}>
-            <View style={[styles.activityIcon, { backgroundColor: `${COLORS.warning}15` }]}>
-              <MaterialCommunityIcons name="alert" size={20} color={COLORS.warning} />
-            </View>
-            <View style={styles.activityText}>
-              <Text style={styles.activityTitle}>Şal stoğu azaldı</Text>
-              <Text style={styles.activityTime}>15 dakika önce</Text>
-            </View>
-          </View>
-
-          <View style={styles.activityItem}>
-            <View style={[styles.activityIcon, { backgroundColor: `${COLORS.info}15` }]}>
-              <MaterialCommunityIcons name="hanger" size={20} color={COLORS.info} />
-            </View>
-            <View style={styles.activityText}>
-              <Text style={styles.activityTitle}>Yeni tunik eklendi</Text>
-              <Text style={styles.activityTime}>1 saat önce</Text>
-            </View>
-          </View>
+          </Card>
         </View>
-      </Card>
+
+        {/* Recent Activity */}
+        <View style={styles.sideBySideCard}>
+          <Card title="Son Aktiviteler" icon="history" iconColor={COLORS.primary}>
+            <View style={styles.activityList}>
+              {activities.length > 0 ? (
+                activities.map((activity) => {
+                  const getColor = (colorName: string) => {
+                    const colorMap: any = {
+                      success: COLORS.success,
+                      warning: COLORS.warning,
+                      info: COLORS.info,
+                      error: COLORS.error,
+                      primary: COLORS.primary,
+                    };
+                    return colorMap[colorName] || COLORS.info;
+                  };
+
+                  return (
+                    <View key={activity.id} style={styles.activityItem}>
+                      <View style={[
+                        styles.activityIcon,
+                        { backgroundColor: `${getColor(activity.color)}15` }
+                      ]}>
+                        <MaterialCommunityIcons
+                          name={activity.icon as any}
+                          size={20}
+                          color={getColor(activity.color)}
+                        />
+                      </View>
+                      <View style={styles.activityText}>
+                        <Text style={styles.activityTitle}>{activity.title}</Text>
+                        <Text style={styles.activityTime}>{activity.time}</Text>
+                      </View>
+                      {activity.amount && (
+                        <Text style={styles.activityAmount}>
+                          ₺{activity.amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })
+              ) : (
+                <View style={styles.emptyState}>
+                  <MaterialCommunityIcons name="history" size={48} color={COLORS.textSecondary} />
+                  <Text style={styles.emptyStateText}>Henüz aktivite yok</Text>
+                </View>
+              )}
+            </View>
+          </Card>
+        </View>
+      </View>
 
       {/* Bottom Spacing for mobile */}
       <View style={{ height: SPACING.xxl }} />
@@ -499,5 +652,104 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     fontWeight: '600',
     color: COLORS.primary,
+  },
+
+  // Ciro Takibi Stilleri
+  profitContainer: {
+    flexDirection: isWeb ? 'row' : 'column',
+    gap: SPACING.md,
+  },
+  profitCard: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    padding: SPACING.md,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  profitHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginBottom: SPACING.md,
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  profitPeriod: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  profitRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  profitLabel: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+  },
+  profitValue: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  profitTotalRow: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    marginTop: SPACING.xs,
+    paddingTop: SPACING.sm,
+  },
+  profitTotalLabel: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  profitTotalValue: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+  },
+  profitMargin: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: `${COLORS.border}50`,
+  },
+  profitMarginLabel: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    fontStyle: 'italic',
+  },
+  profitMarginValue: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '700',
+    color: COLORS.info,
+  },
+
+  // Yan Yana Layout Stilleri
+  sideBySideContainer: {
+    flexDirection: isWeb ? 'row' : 'column',
+    gap: SPACING.md,
+    marginBottom: SPACING.lg,
+  },
+  sideBySideCard: {
+    flex: 1,
+  },
+
+  // Empty State Stilleri
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.xl,
+  },
+  emptyStateText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.sm,
   },
 });
